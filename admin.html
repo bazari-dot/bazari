@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bazari - Secure Admin Panel</title>
+
+  <!-- Firebase Modular SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+      getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { 
+      getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, setDoc, getDoc 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAdqIjaXbBbn-S5jLH-CeEmJzL6xzC7Jf0",
+      authDomain: "bazari-c4a7b.firebaseapp.com",
+      projectId: "bazari-c4a7b",
+      storageBucket: "bazari-c4a7b.firebasestorage.app",
+      messagingSenderId: "211703602007",
+      appId: "1:211703602007:web:b28c39137fea4a2eb97c12",
+      measurementId: "G-BJRGDXVGRK"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+    const secondaryAuth = getAuth(secondaryApp);
+
+    window.db = db;
+    window.auth = auth;
+    window.secondaryAuth = secondaryAuth;
+    window.authFuncs = { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword };
+    window.fs = { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, setDoc, getDoc };
+  </script>
+
+  <style>
+    :root {
+      --primary-orange: #ff6f00;
+      --orange-light: #fff3e0;
+      --bg-color: #f4f6f9;
+      --text-dark: #2c3e50;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-dark); padding-bottom: 50px; }
+    .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+
+    .login-box { max-width: 400px; margin: 100px auto; background: white; padding: 35px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
+    .login-box input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; outline: none; }
+    .btn-submit { background: var(--primary-orange); color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px; }
+
+    .dashboard-panel { display: none; }
+    .admin-header { background: #2c3e50; color: white; padding: 20px 30px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+
+    .admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab-btn { background: white; border: 1px solid #ddd; padding: 12px 18px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; color: var(--text-dark); }
+    .tab-btn.active { background: var(--primary-orange); color: white; border-color: var(--primary-orange); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .admin-card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 25px; }
+    .admin-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 15px; }
+    .full-width-field { grid-column: 1 / -1; }
+    .admin-form-grid input, .admin-form-grid select, .admin-form-grid textarea { padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 100%; }
+
+    .media-label { font-size: 13px; font-weight: bold; margin-bottom: 5px; display: block; color: #555; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    th { background-color: var(--orange-light); color: var(--primary-orange); }
+
+    .btn-edit { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+    .btn-delete { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+    .btn-logout { background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .media-thumb { width: 45px; height: 45px; object-fit: cover; border-radius: 4px; margin-right: 4px; }
+    .banner-preview-img { width: 160px; height: 55px; object-fit: cover; border-radius: 6px; }
+
+    .cat-chip { background: var(--orange-light); color: var(--primary-orange); padding: 8px 14px; border-radius: 20px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+    .cat-chip button { background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- LOGIN -->
+    <section id="loginSection" class="login-box">
+      <h2 style="margin-bottom: 5px;">Bazari Admin</h2>
+      <p style="color: #777; font-size: 13px; margin-bottom: 20px;">Please login to access admin panel</p>
+      
+      <form onsubmit="handleAdminLogin(event)">
+        <input type="email" id="adminEmail" placeholder="Admin Email" required>
+        <input type="password" id="adminPass" placeholder="Password" required>
+        <button type="submit" id="loginBtn" class="btn-submit" style="margin-top: 10px;">Login</button>
+      </form>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="dashboardSection" class="dashboard-panel">
+      <div class="admin-header">
+        <div>
+          <h2>Bazari Admin Dashboard</h2>
+          <small id="adminEmailDisplay" style="color: #bdc3c7;"></small>
+        </div>
+        <button class="btn-logout" onclick="handleAdminLogout()">Logout</button>
+      </div>
+
+      <!-- Tab Buttons -->
+      <div class="admin-tabs">
+        <button class="tab-btn active" onclick="switchTab(event, 'tabAddProduct')">📦 Add/Edit Product</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tabProducts')">📋 Product List</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tabBanners')">🖼️ Billboard Banners</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tabCategories')">📁 Categories</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tabOrders')">🛒 Orders</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tabPayMethods')">💳 Payment Methods</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tabFooter')">📄 Footer Info</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tabSettings')">⚙️ Delivery Charges</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tabSubAdmins')">👥 Sub-Admins</button>
+      </div>
+
+      <!-- TAB 1: ADD / EDIT PRODUCT -->
+      <div id="tabAddProduct" class="tab-content active">
+        <div class="admin-card">
+          <h3 id="formTitle">Add New Product</h3>
+          <form id="addProductForm" onsubmit="handleSaveProduct(event)">
+            <input type="hidden" id="editProductId" value="">
+            <div class="admin-form-grid">
+              <div>
+                <span class="media-label">Product Name</span>
+                <input type="text" id="pName" placeholder="Name" required>
+              </div>
+              <div>
+                <span class="media-label">Price (৳)</span>
+                <input type="number" id="pPrice" placeholder="Price" required>
+              </div>
+              <div>
+                <span class="media-label">Discount (%)</span>
+                <input type="number" id="pDiscount" placeholder="Discount" value="0">
+              </div>
+              <div>
+                <span class="media-label">Stock Quantity</span>
+                <input type="number" id="pStock" placeholder="Stock" required>
+              </div>
+              <div>
+                <span class="media-label">Select Category</span>
+                <select id="pCategory" required></select>
+              </div>
+              <div>
+                <span class="media-label">Images</span>
+                <input type="file" id="pImages" accept="image/*" multiple>
+              </div>
+              <div>
+                <span class="media-label">Product Video (Optional)</span>
+                <input type="file" id="pVideo" accept="video/*">
+              </div>
+              <div class="full-width-field">
+                <span class="media-label">Product Description</span>
+                <textarea id="pDescription" rows="4" placeholder="Write detailed description..."></textarea>
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:15px;">
+              <button type="submit" id="saveProdBtn" class="btn-submit" style="width: auto; padding: 10px 30px;">Save Product</button>
+              <button type="button" id="cancelEditBtn" onclick="resetProductForm()" style="display:none; background:#7f8c8d; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;">Cancel Edit</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- TAB 2: MANAGE PRODUCTS -->
+      <div id="tabProducts" class="tab-content">
+        <div class="admin-card">
+          <h3>All Products List</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Media</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminProductTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 3: BILLBOARD BANNERS -->
+      <div id="tabBanners" class="tab-content">
+        <div class="admin-card">
+          <h3>Manage Billboard Banners</h3>
+          <p style="color:#666; font-size:13px; margin-top:5px; margin-bottom:15px;">
+            Recommended Size: <b>1200 × 400 px</b> (3:1 Ratio) for optimal display on mobile and desktop.
+          </p>
+          <form onsubmit="handleAddBanner(event)" style="max-width:500px;">
+            <div style="margin-bottom:12px;">
+              <span class="media-label">Banner Image</span>
+              <input type="file" id="bannerImgInput" accept="image/*" required style="padding:10px; border:1px solid #ddd; border-radius:6px; width:100%;">
+            </div>
+            <div style="margin-bottom:15px;">
+              <span class="media-label">Redirect Link / URL (Optional)</span>
+              <input type="text" id="bannerLinkInput" placeholder="https://..." style="padding:10px; border:1px solid #ddd; border-radius:6px; width:100%;">
+            </div>
+            <button type="submit" id="saveBannerBtn" class="btn-submit" style="width:auto; padding:10px 25px;">Upload Banner</button>
+          </form>
+
+          <h4 style="margin-top:25px;">Active Banners:</h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Preview</th>
+                <th>Redirect Link</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="bannersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 4: CATEGORIES -->
+      <div id="tabCategories" class="tab-content">
+        <div class="admin-card">
+          <h3>Category Management</h3>
+          <form onsubmit="handleAddCategory(event)" style="display:flex; gap:10px; margin-top:15px; max-width:500px;">
+            <input type="text" id="catNameInput" placeholder="Category Name" required style="padding:10px; border:1px solid #ddd; border-radius:6px; flex:1;">
+            <button type="submit" class="btn-submit" style="width:auto; padding:10px 20px;">Add Category</button>
+          </form>
+          <h4 style="margin-top: 25px;">Current Categories:</h4>
+          <div id="categoryContainer" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:15px;"></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: ORDERS -->
+      <div id="tabOrders" class="tab-content">
+        <div class="admin-card">
+          <h3>Orders & Customer Address Details</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Customer Info</th>
+                <th>Full Address</th>
+                <th>Payment</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="adminOrderTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 6: PAYMENT METHODS -->
+      <div id="tabPayMethods" class="tab-content">
+        <div class="admin-card">
+          <h3>Add Payment Method</h3>
+          <form onsubmit="handleAddPayMethod(event)" style="max-width:500px; margin-top:15px;">
+            <div style="margin-bottom:10px;">
+              <span class="media-label">Method Name (e.g., bKash, Nagad, Rocket, Bank)</span>
+              <input type="text" id="payName" required placeholder="Name" style="padding:10px; width:100%; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <div style="margin-bottom:10px;">
+              <span class="media-label">Account/Phone Number</span>
+              <input type="text" id="payNumber" required placeholder="017XXXXXXXX" style="padding:10px; width:100%; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <div style="margin-bottom:15px;">
+              <span class="media-label">Instruction / Notes</span>
+              <textarea id="payInstruction" rows="2" placeholder="Send Money to this personal number..." style="padding:10px; width:100%; border:1px solid #ddd; border-radius:6px;"></textarea>
+            </div>
+            <button type="submit" class="btn-submit">Save Payment Method</button>
+          </form>
+
+          <h4 style="margin-top:25px;">Active Payment Methods:</h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Number</th>
+                <th>Instruction</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="payMethodsTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 7: FOOTER INFO -->
+      <div id="tabFooter" class="tab-content">
+        <div class="admin-card">
+          <h3>Update Footer & Company Information</h3>
+          <form onsubmit="handleSaveFooter(event)" style="max-width:600px; margin-top:15px;">
+            <div style="margin-bottom:10px;">
+              <span class="media-label">Company Name</span>
+              <input type="text" id="ftInputName" placeholder="Bazari" required style="padding:10px; width:100%; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <div style="margin-bottom:10px;">
+              <span class="media-label">About / Description</span>
+              <textarea id="ftInputAbout" rows="3" placeholder="About your store..." style="padding:10px; width:100%; border:1px solid #ddd; border-radius:6px;"></textarea>
+            </div>
+            <div style="margin-bottom:10px;">
+              <span class="media-label">Contact Phone</span>
+              <input type="text" id="ftInputPhone" placeholder="017XXXXXXXX" required style="padding:10px; width:100%; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <div style="margin-bottom:10px;">
+              <span class="media-label">Contact Email</span>
+              <input type="email" id="ftInputEmail" placeholder="info@domain.com" required style="padding:10px; width:100%; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <div style="margin-bottom:15px;">
+              <span class="media-label">Company Address</span>
+              <input type="text" id="ftInputAddress" placeholder="Kurigram, Bangladesh" required style="padding:10px; width:100%; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <button type="submit" class="btn-submit">Save Footer Info</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- TAB 8: DELIVERY CHARGES -->
+      <div id="tabSettings" class="tab-content">
+        <div class="admin-card">
+          <h3>Delivery Charge Settings</h3>
+          <form onsubmit="handleSaveDeliveryCharges(event)" style="max-width:400px; margin-top:15px;">
+            <div style="margin-bottom:15px;">
+              <span class="media-label">Inside Dhaka Delivery Charge (৳)</span>
+              <input type="number" id="chargeDhaka" required style="padding:10px; width:100%; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <div style="margin-bottom:15px;">
+              <span class="media-label">Outside Dhaka Delivery Charge (৳)</span>
+              <input type="number" id="chargeOutside" required style="padding:10px; width:100%; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <button type="submit" class="btn-submit">Save Charges</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- TAB 9: SUB-ADMINS -->
+      <div id="tabSubAdmins" class="tab-content">
+        <div class="admin-card">
+          <h3>Create Sub-Admin User</h3>
+          <form onsubmit="handleCreateSubAdmin(event)" style="max-width:400px; margin-top:15px;">
+            <div style="margin-bottom:10px;">
+              <span class="media-label">Sub-Admin Email</span>
+              <input type="email" id="subEmail" required placeholder="email@domain.com" style="padding:10px; width:100%; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <div style="margin-bottom:15px;">
+              <span class="media-label">Password</span>
+              <input type="password" id="subPass" required placeholder="Minimum 6 characters" style="padding:10px; width:100%; border:1px solid #ddd; border-radius:6px;">
+            </div>
+            <button type="submit" class="btn-submit">Create Sub-Admin Account</button>
+          </form>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <script>
+    let globalProducts = [];
+    let globalOrders = [];
+    let globalCategories = [];
+    let globalPayMethods = [];
+    let globalBanners = [];
+
+    function switchTab(e, tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById(tabId).classList.add('active');
+      if (e && e.currentTarget) e.currentTarget.classList.add('active');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const checkAuth = setInterval(() => {
+        if (window.auth && window.authFuncs) {
+          clearInterval(checkAuth);
+          window.authFuncs.onAuthStateChanged(auth, (user) => {
+            if (user) {
+              document.getElementById('loginSection').style.display = 'none';
+              document.getElementById('dashboardSection').style.display = 'block';
+              document.getElementById('adminEmailDisplay').innerText = user.email;
+              initDashboardListeners();
+              loadDeliverySettings();
+              loadFooterSettings();
+            } else {
+              document.getElementById('loginSection').style.display = 'block';
+              document.getElementById('dashboardSection').style.display = 'none';
+            }
+          });
+        }
+      }, 300);
+    });
+
+    async function handleAdminLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('adminEmail').value;
+      const pass = document.getElementById('adminPass').value;
+      const loginBtn = document.getElementById('loginBtn');
+      loginBtn.innerText = "Verifying..."; loginBtn.disabled = true;
+
+      try {
+        await authFuncs.signInWithEmailAndPassword(auth, email, pass);
+      } catch (err) { alert("Login failed: " + err.message); } 
+      finally { loginBtn.innerText = "Login"; loginBtn.disabled = false; }
+    }
+
+    async function handleAdminLogout() {
+      if(confirm('Are you sure you want to logout?')) await authFuncs.signOut(auth);
+    }
+
+    function initDashboardListeners() {
+      fs.onSnapshot(fs.collection(db, "products"), (snapshot) => {
+        globalProducts = [];
+        snapshot.forEach((doc) => globalProducts.push({ id: doc.id, ...doc.data() }));
+        renderAdminProducts();
+      });
+
+      fs.onSnapshot(fs.collection(db, "orders"), (snapshot) => {
+        globalOrders = [];
+        snapshot.forEach((doc) => globalOrders.push({ firestoreId: doc.id, ...doc.data() }));
+        renderAdminOrders();
+      });
+
+      fs.onSnapshot(fs.collection(db, "categories"), (snapshot) => {
+        globalCategories = [];
+        snapshot.forEach((doc) => globalCategories.push({ id: doc.id, ...doc.data() }));
+        renderCategories();
+      });
+
+      fs.onSnapshot(fs.collection(db, "paymentMethods"), (snapshot) => {
+        globalPayMethods = [];
+        snapshot.forEach((doc) => globalPayMethods.push({ id: doc.id, ...doc.data() }));
+        renderPayMethodsTable();
+      });
+
+      fs.onSnapshot(fs.collection(db, "banners"), (snapshot) => {
+        globalBanners = [];
+        snapshot.forEach((doc) => globalBanners.push({ id: doc.id, ...doc.data() }));
+        renderBannersTable();
+      });
+    }
+
+    async function handleAddBanner(e) {
+      e.preventDefault();
+      const btn = document.getElementById('saveBannerBtn');
+      btn.innerText = "Uploading..."; btn.disabled = true;
+      const fileInput = document.getElementById('bannerImgInput');
+      const linkInput = document.getElementById('bannerLinkInput').value;
+
+      try {
+        if(fileInput.files.length === 0) throw new Error("Please select a banner image.");
+        const compressedBanner = await resizeAndCompressImage(fileInput.files[0], 1200, 400);
+        
+        await fs.addDoc(fs.collection(db, "banners"), {
+          image: compressedBanner,
+          link: linkInput || '',
+          createdAt: new Date()
+        });
+
+        alert('Banner uploaded successfully!');
+        fileInput.value = '';
+        document.getElementById('bannerLinkInput').value = '';
+      } catch(err) {
+        alert('Error: ' + err.message);
+      } finally {
+        btn.innerText = "Upload Banner"; btn.disabled = false;
+      }
+    }
+
+    function renderBannersTable() {
+      const tbody = document.getElementById('bannersTableBody');
+      tbody.innerHTML = '';
+      globalBanners.forEach(b => {
+        tbody.innerHTML += `
+          <tr>
+            <td><img src="${b.image}" class="banner-preview-img"></td>
+            <td>${b.link ? `<a href="${b.link}" target="_blank">${b.link}</a>` : 'N/A'}</td>
+            <td><button class="btn-delete" onclick="deleteBanner('${b.id}')">Delete</button></td>
+          </tr>
+        `;
+      });
+    }
+
+    async function deleteBanner(id) {
+      if(confirm('Delete this banner?')) await fs.deleteDoc(fs.doc(db, "banners", id));
+    }
+
+    async function loadDeliverySettings() {
+      try {
+        const snap = await fs.getDoc(fs.doc(db, "settings", "delivery"));
+        if(snap.exists()) {
+          document.getElementById('chargeDhaka').value = snap.data().insideDhaka || 60;
+          document.getElementById('chargeOutside').value = snap.data().outsideDhaka || 120;
+        }
+      } catch(err) { console.error(err); }
+    }
+
+    async function loadFooterSettings() {
+      try {
+        const snap = await fs.getDoc(fs.doc(db, "settings", "footer"));
+        if(snap.exists()) {
+          const d = snap.data();
+          document.getElementById('ftInputName').value = d.compName || '';
+          document.getElementById('ftInputAbout').value = d.about || '';
+          document.getElementById('ftInputPhone').value = d.phone || '';
+          document.getElementById('ftInputEmail').value = d.email || '';
+          document.getElementById('ftInputAddress').value = d.address || '';
+        }
+      } catch(err) { console.error(err); }
+    }
+
+    async function handleSaveFooter(e) {
+      e.preventDefault();
+      try {
+        await fs.setDoc(fs.doc(db, "settings", "footer"), {
+          compName: document.getElementById('ftInputName').value,
+          about: document.getElementById('ftInputAbout').value,
+          phone: document.getElementById('ftInputPhone').value,
+          email: document.getElementById('ftInputEmail').value,
+          address: document.getElementById('ftInputAddress').value
+        });
+        alert('Footer information updated successfully!');
+      } catch(err) { alert('Error: ' + err.message); }
+    }
+
+    async function handleAddPayMethod(e) {
+      e.preventDefault();
+      try {
+        await fs.addDoc(fs.collection(db, "paymentMethods"), {
+          name: document.getElementById('payName').value,
+          number: document.getElementById('payNumber').value,
+          instruction: document.getElementById('payInstruction').value
+        });
+        document.getElementById('payName').value = '';
+        document.getElementById('payNumber').value = '';
+        document.getElementById('payInstruction').value = '';
+        alert('Payment method added!');
+      } catch(err) { alert('Error: ' + err.message); }
+    }
+
+    function renderPayMethodsTable() {
+      const tbody = document.getElementById('payMethodsTable');
+      tbody.innerHTML = '';
+      globalPayMethods.forEach(m => {
+        tbody.innerHTML += `
+          <tr>
+            <td><b>${m.name}</b></td>
+            <td>${m.number}</td>
+            <td>${m.instruction || 'N/A'}</td>
+            <td><button class="btn-delete" onclick="deletePayMethod('${m.id}')">Delete</button></td>
+          </tr>
+        `;
+      });
+    }
+
+    async function deletePayMethod(id) {
+      if(confirm('Delete payment method?')) await fs.deleteDoc(fs.doc(db, "paymentMethods", id));
+    }
+
+    async function handleSaveDeliveryCharges(e) {
+      e.preventDefault();
+      try {
+        await fs.setDoc(fs.doc(db, "settings", "delivery"), {
+          insideDhaka: parseFloat(document.getElementById('chargeDhaka').value),
+          outsideDhaka: parseFloat(document.getElementById('chargeOutside').value)
+        });
+        alert('Delivery charges updated!');
+      } catch(err) { alert('Error: ' + err.message); }
+    }
+
+    function renderCategories() {
+      const container = document.getElementById('categoryContainer');
+      const selectBox = document.getElementById('pCategory');
+      container.innerHTML = ''; selectBox.innerHTML = '';
+
+      globalCategories.forEach(cat => {
+        container.innerHTML += `<div class="cat-chip"><span>${cat.name}</span><button onclick="deleteCategory('${cat.id}')">✕</button></div>`;
+        selectBox.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+      });
+    }
+
+    async function handleAddCategory(e) {
+      e.preventDefault();
+      const name = document.getElementById('catNameInput').value.trim();
+      if(name) {
+        await fs.addDoc(fs.collection(db, "categories"), { name });
+        document.getElementById('catNameInput').value = '';
+      }
+    }
+
+    async function deleteCategory(id) {
+      if(confirm('Delete category?')) await fs.deleteDoc(fs.doc(db, "categories", id));
+    }
+
+    function renderAdminProducts() {
+      const pTbody = document.getElementById('adminProductTable');
+      pTbody.innerHTML = '';
+      globalProducts.forEach(p => {
+        let mediaHtml = (p.images && p.images.length > 0) ? `<img src="${p.images[0]}" class="media-thumb">` : '';
+        pTbody.innerHTML += `
+          <tr>
+            <td>${mediaHtml}</td>
+            <td>${p.name}</td>
+            <td>${p.category || 'N/A'}</td>
+            <td>৳${p.price}</td>
+            <td>${p.stock}</td>
+            <td>
+              <button class="btn-edit" onclick="editProduct('${p.id}')">Edit</button>
+              <button class="btn-delete" onclick="deleteProduct('${p.id}')">Delete</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderAdminOrders() {
+      const oTbody = document.getElementById('adminOrderTable');
+      oTbody.innerHTML = '';
+      globalOrders.forEach(o => {
+        let payInfo = `<b>${o.payment ? o.payment.method : 'N/A'}</b>`;
+        if(o.payment && o.payment.senderNumber) payInfo += `<br><small>Num: ${o.payment.senderNumber}</small><br><small>TrxID: ${o.payment.trxId}</small>`;
+
+        const c = o.customer || {};
+        const fullAddr = `${c.detailAddress || ''}, ${c.area || ''}, ${c.upazila || ''}, ${c.district || ''} - ${c.postCode || ''}`;
+
+        oTbody.innerHTML += `
+          <tr>
+            <td><strong>${o.orderId || o.firestoreId}</strong></td>
+            <td>${c.name || 'N/A'}<br><small>${c.phone || ''}</small></td>
+            <td><small>${fullAddr}</small></td>
+            <td>${payInfo}</td>
+            <td>৳${o.amount || 0}</td>
+            <td>
+              <select onchange="changeOrderStatus('${o.firestoreId}', this.value)">
+                <option value="Placed" ${o.status==='Placed'?'selected':''}>Placed</option>
+                <option value="Packaging" ${o.status==='Packaging'?'selected':''}>Packaging</option>
+                <option value="Shipped" ${o.status==='Shipped'?'selected':''}>Shipped</option>
+                <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
+                <option value="Cancelled" ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
+              </select>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    async function changeOrderStatus(firestoreId, newStatus) {
+      await fs.updateDoc(fs.doc(db, "orders", firestoreId), { status: newStatus });
+      alert('Status updated!');
+    }
+
+    async function handleCreateSubAdmin(e) {
+      e.preventDefault();
+      try {
+        await authFuncs.createUserWithEmailAndPassword(secondaryAuth, document.getElementById('subEmail').value, document.getElementById('subPass').value);
+        await authFuncs.signOut(secondaryAuth);
+        alert('Sub-Admin user created!');
+        document.getElementById('subEmail').value = '';
+        document.getElementById('subPass').value = '';
+      } catch(err) { alert('Error: ' + err.message); }
+    }
+
+    function resizeAndCompressImage(file, maxWidth = 800, maxHeight = 800) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let width = img.width, height = img.height;
+            if (width > height) { if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; } } 
+            else { if (height > maxHeight) { width = Math.round((width * maxHeight) / height); height = maxHeight; } }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.75));
+          };
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handleSaveProduct(e) {
+      e.preventDefault();
+      const saveBtn = document.getElementById('saveProdBtn');
+      saveBtn.innerText = "Processing..."; saveBtn.disabled = true;
+
+      const editId = document.getElementById('editProductId').value;
+      const name = document.getElementById('pName').value;
+      const price = parseFloat(document.getElementById('pPrice').value);
+      const discount = parseFloat(document.getElementById('pDiscount').value) || 0;
+      const stock = parseInt(document.getElementById('pStock').value);
+      const category = document.getElementById('pCategory').value;
+      const description = document.getElementById('pDescription').value;
+      
+      const imageFiles = document.getElementById('pImages').files;
+
+      try {
+        let resizedImages = [];
+        if(imageFiles.length > 0) {
+          const imagePromises = Array.from(imageFiles).map(file => resizeAndCompressImage(file));
+          resizedImages = await Promise.all(imagePromises);
+        }
+
+        if(editId) {
+          const updateData = { name, price, discount, stock, category, description };
+          if(resizedImages.length > 0) { updateData.images = resizedImages; updateData.image = resizedImages[0]; }
+          await fs.updateDoc(fs.doc(db, "products", editId), updateData);
+          alert('Product updated!');
+        } else {
+          if(resizedImages.length === 0) throw new Error('Select at least one image.');
+          await fs.addDoc(fs.collection(db, "products"), {
+            name, price, discount, stock, category, description,
+            images: resizedImages, image: resizedImages[0], createdAt: new Date()
+          });
+          alert('Product saved!');
+        }
+
+        resetProductForm();
+        switchTab(null, 'tabProducts');
+      } catch (err) { alert('Error: ' + err.message); }
+      finally { saveBtn.innerText = editId ? "Update Product" : "Save Product"; saveBtn.disabled = false; }
+    }
+
+    function editProduct(id) {
+      const p = globalProducts.find(item => item.id === id);
+      if(!p) return;
+      document.getElementById('editProductId').value = p.id;
+      document.getElementById('pName').value = p.name;
+      document.getElementById('pPrice').value = p.price;
+      document.getElementById('pDiscount').value = p.discount || 0;
+      document.getElementById('pStock').value = p.stock;
+      document.getElementById('pCategory').value = p.category;
+      document.getElementById('pDescription').value = p.description || '';
+      document.getElementById('formTitle').innerText = "Edit Product: " + p.name;
+      document.getElementById('saveProdBtn').innerText = "Update Product";
+      document.getElementById('cancelEditBtn').style.display = "inline-block";
+      switchTab(null, 'tabAddProduct');
+    }
+
+    function resetProductForm() {
+      document.getElementById('editProductId').value = '';
+      document.getElementById('addProductForm').reset();
+      document.getElementById('formTitle').innerText = "Add New Product";
+      document.getElementById('saveProdBtn').innerText = "Save Product";
+      document.getElementById('cancelEditBtn').style.display = "none";
+    }
+
+    async function deleteProduct(docId) {
+      if(confirm('Delete product?')) await fs.deleteDoc(fs.doc(db, "products", docId));
+    }
+  </script>
+</body>
+</html>

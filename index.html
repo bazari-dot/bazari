@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bazari - Trusted Online Shop</title>
+
+  <!-- Firebase Modular SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+      getFirestore, collection, addDoc, onSnapshot, doc, getDoc, setDoc, query, where, getDocs 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAdqIjaXbBbn-S5jLH-CeEmJzL6xzC7Jf0",
+      authDomain: "bazari-c4a7b.firebaseapp.com",
+      projectId: "bazari-c4a7b",
+      storageBucket: "bazari-c4a7b.firebasestorage.app",
+      messagingSenderId: "211703602007",
+      appId: "1:211703602007:web:b28c39137fea4a2eb97c12",
+      measurementId: "G-BJRGDXVGRK"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.db = db;
+    window.fs = { collection, addDoc, onSnapshot, doc, getDoc, setDoc, query, where, getDocs };
+  </script>
+
+  <style>
+    :root {
+      --primary-orange: #ff6f00;
+      --orange-hover: #e66400;
+      --orange-light: #fff3e0;
+      --bg-color: #f5f5f5;
+      --text-dark: #2c3e50;
+      --border-color: #e0e0e0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
+
+    header { background: var(--primary-orange); color: white; padding: 16px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
+    .brand-logo { font-size: 32px; font-weight: 900; letter-spacing: 0.5px; cursor: pointer; }
+    nav { display: flex; gap: 20px; align-items: center; }
+    nav a { color: white; text-decoration: none; font-weight: 700; font-size: 15px; cursor: pointer; }
+
+    .cart-btn-nav { background: white; color: var(--text-dark); padding: 8px 18px; border-radius: 20px; font-weight: bold; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+    .badge { background: #2c3e50; color: white; padding: 2px 8px; border-radius: 50%; font-size: 12px; }
+
+    .container { max-width: 1200px; margin: 25px auto; padding: 0 20px; flex: 1; width: 100%; }
+    .view-section { display: none; }
+    .view-section.active { display: block; }
+
+    .billboard-slider { position: relative; width: 100%; height: 260px; border-radius: 12px; overflow: hidden; margin-bottom: 25px; background: #e0e0e0; }
+    .billboard-slide { position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; transition: opacity 0.8s ease-in-out; }
+    .billboard-slide.active { opacity:1; }
+    .billboard-slide img { width:100%; height:100%; object-fit:cover; }
+
+    .filter-bar { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 25px; }
+    .filter-bar input, .filter-bar select { padding: 12px 15px; border: 1px solid #e0e0e0; border-radius: 8px; outline: none; background: white; font-size: 14px; }
+    .search-input { flex: 1; }
+
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+    .product-card { background: white; border-radius: 10px; border: 1px solid #eaeaea; padding: 15px; text-align: center; transition: 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; }
+    .product-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .product-card img { width: 100%; height: 180px; object-fit: contain; border-radius: 6px; margin-bottom: 12px; cursor: pointer; }
+
+    .product-title { font-size: 14px; font-weight: 700; color: #2c3e50; margin-bottom: 6px; line-height: 1.4; height: 38px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .card-rating-badge { font-size: 12px; color: #ff9800; font-weight: bold; margin-bottom: 8px; }
+
+    .price-tag { margin-bottom: 12px; }
+    .orig-price { text-decoration: line-through; color: #aaa; font-size: 13px; margin-right: 6px; }
+    .disc-price { color: var(--primary-orange); font-weight: 800; font-size: 18px; }
+
+    .btn-group { display: flex; gap: 8px; margin-bottom: 8px; }
+    .btn-add-cart { background: white; color: var(--primary-orange); border: 1.5px solid var(--primary-orange); padding: 9px 5px; flex: 1; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
+    .btn-buy-now { background: var(--primary-orange); color: white; border: none; padding: 9px 5px; flex: 1; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
+    .btn-details { background: #eeeeee; border: none; padding: 8px; width: 100%; border-radius: 4px; font-size: 12px; font-weight: 600; color: #555; cursor: pointer; }
+
+    .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:2000; padding:20px; }
+    .modal-content { background:white; padding:25px; border-radius:12px; max-width:750px; width:95%; max-height:90vh; overflow-y:auto; position:relative; }
+    .close-modal { position:absolute; top:15px; right:20px; font-size:24px; cursor:pointer; font-weight:bold; color:#777; z-index:10; }
+    .modal-gallery { display:flex; gap:10px; overflow-x:auto; margin-bottom:15px; padding-bottom:5px; }
+
+    .cart-summary { background: white; padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); max-width: 650px; margin: 0 auto; }
+    .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
+    
+    .address-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .full-width { grid-column: 1 / -1; }
+    .checkout-form input, .checkout-form textarea, .checkout-form select { padding: 10px; border: 1px solid #ccc; border-radius: 6px; width: 100%; font-size: 14px; background: white; }
+
+    .payment-options-box { border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #fafafa; margin-top: 10px; }
+    .pay-method-item { margin-bottom: 10px; }
+    .pay-info-card { background: #fff; border: 1px dashed var(--primary-orange); border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 13px; }
+
+    footer { background: #2c3e50; color: #ecf0f1; padding: 40px 20px 20px 20px; margin-top: 50px; }
+    .footer-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; }
+    .footer-col h3 { color: var(--primary-orange); margin-bottom: 15px; font-size: 18px; }
+    .footer-col p, .footer-col ul { font-size: 14px; line-height: 1.8; color: #bdc3c7; list-style: none; }
+    .footer-bottom { border-top: 1px solid #34495e; text-align: center; margin-top: 30px; padding-top: 15px; font-size: 13px; color: #7f8c8d; }
+
+    .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-block; }
+    .status-Placed { background: #fff3cd; color: #856404; }
+    .status-Packaging { background: #cce5ff; color: #004085; }
+    .status-Shipped { background: #d1ecf1; color: #0c5460; }
+    .status-Delivered { background: #d4edda; color: #155724; }
+    .status-Cancelled { background: #f8d7da; color: #721c24; }
+
+    .profile-card { background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; margin-bottom: 20px; text-align: left; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand-logo" onclick="showView('shopView')">Bazari</div>
+    <nav>
+      <a onclick="showView('shopView')">Shop</a>
+      <a onclick="showView('accountView')">My Account & Orders</a>
+      <button class="cart-btn-nav" onclick="showView('cartView')">
+        🛒 Cart <span id="cartCount" class="badge">0</span>
+      </button>
+    </nav>
+  </header>
+
+  <div class="container">
+
+    <!-- 1. SHOP VIEW -->
+    <section id="shopView" class="view-section active">
+      <div id="billboardSlider" class="billboard-slider"></div>
+
+      <div class="filter-bar">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search product..." oninput="filterProducts()">
+        <select id="categoryFilter" onchange="filterProducts()">
+          <option value="All">All Categories</option>
+        </select>
+      </div>
+
+      <div id="productGrid" class="product-grid"></div>
+    </section>
+
+    <!-- 2. CART VIEW -->
+    <section id="cartView" class="view-section">
+      <div class="cart-summary">
+        <h2>Your Shopping Cart</h2>
+        <div id="cartItemsList" style="margin-top: 15px;"></div>
+        
+        <div style="margin-top: 15px; text-align: right; line-height: 1.8;">
+          <p>Subtotal: ৳<span id="subTotal">0</span></p>
+          <p>Delivery Charge: ৳<span id="deliveryCharge">60</span></p>
+          <h3>Total Price: ৳<span id="cartTotal">0</span></h3>
+        </div>
+        
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+
+        <h3>Order & Shipping Details</h3>
+        <form class="checkout-form" id="orderCheckoutForm" onsubmit="processCheckout(event)">
+          <div class="address-grid">
+            <div class="full-width">
+              <label><strong>Mobile Phone Number:</strong></label>
+              <input type="tel" id="custPhone" placeholder="017XXXXXXXX" required onblur="fetchCustomerProfile(this.value)">
+            </div>
+            <div class="full-width">
+              <label><strong>Full Name:</strong></label>
+              <input type="text" id="custName" placeholder="Enter your full name" required>
+            </div>
+            
+            <div>
+              <label><strong>Select District:</strong></label>
+              <select id="custDistrict" required onchange="onDistrictChange(this.value)">
+                <option value="">Select District</option>
+              </select>
+            </div>
+            <div>
+              <label><strong>Select Thana/Upazila:</strong></label>
+              <select id="custUpazila" required onchange="onUpazilaChange(this.value)">
+                <option value="">Select District First</option>
+              </select>
+            </div>
+
+            <div>
+              <label><strong>Post Code:</strong></label>
+              <input type="text" id="custPostCode" placeholder="e.g. 1207">
+            </div>
+            <div>
+              <label><strong>Village / Area / Union:</strong></label>
+              <input type="text" id="custArea" placeholder="e.g. Sector 4, Mirpur" required>
+            </div>
+            <div class="full-width">
+              <label><strong>Detailed Address (House/Road No):</strong></label>
+              <textarea id="custDetailAddress" placeholder="Enter house no, road no, holding no..." rows="2" required></textarea>
+            </div>
+            <div class="full-width">
+              <label><strong>Delivery Zone:</strong></label>
+              <select id="deliveryArea" onchange="updateDeliveryChargeUI()">
+                <option value="inside">Inside Dhaka City (৳<span class="lbl-dhaka">60</span>)</option>
+                <option value="outside">Outside Dhaka City (৳<span class="lbl-outside">120</span>)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="payment-options-box">
+            <label style="margin-bottom: 10px; display:block;"><strong>Select Payment Method:</strong></label>
+            <div id="paymentMethodsContainer">
+              <div class="pay-method-item">
+                <input type="radio" id="payCOD" name="paymentMethod" value="COD" checked onclick="togglePaymentDetail('COD')">
+                <label for="payCOD"><strong>Cash on Delivery (COD)</strong></label>
+              </div>
+            </div>
+
+            <div id="dynamicPayInfo" class="pay-info-card" style="display:none;">
+              <p id="payInstructionText"></p>
+              <input type="text" id="paySenderNum" placeholder="Your Payment Account Number" style="margin-top:8px;">
+              <input type="text" id="payTrxId" placeholder="Transaction ID (TrxID)" style="margin-top:8px;">
+            </div>
+          </div>
+
+          <button type="submit" id="checkoutBtn" class="btn-buy-now" style="padding: 12px; margin-top: 15px; width:100%;">Confirm Order</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- 3. MY ACCOUNT & ORDER HISTORY VIEW -->
+    <section id="accountView" class="view-section">
+      <div class="cart-summary" style="max-width: 800px;">
+        <h2>My Profile & Lifetime Orders</h2>
+        <p style="color: #666; margin-bottom: 15px;">Enter your phone number to view your profile and order history:</p>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <input type="tel" id="userPhoneSearch" placeholder="017XXXXXXXX" style="flex:1; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
+          <button class="btn-buy-now" style="width: auto; padding: 10px 20px;" onclick="loadUserAccount()">Load Profile</button>
+        </div>
+
+        <div id="userProfileDisplay" style="display:none;" class="profile-card"></div>
+        <div id="userOrderHistory"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Enhanced Product Modal -->
+  <div id="productModal" class="modal-overlay">
+    <div class="modal-content">
+      <span class="close-modal" onclick="closeModal()">&times;</span>
+      
+      <!-- Top Grid Section: Gallery & Main Details -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; align-items: start;">
+        
+        <!-- Gallery Column -->
+        <div>
+          <div id="modalGallery" class="modal-gallery" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px;"></div>
+        </div>
+
+        <!-- Details Column -->
+        <div>
+          <h2 id="modalTitle" style="font-size: 20px; font-weight: 700; color: #2c3e50; line-height: 1.3;"></h2>
+          
+          <!-- Rating & Sold Count Badges -->
+          <div style="display: flex; align-items: center; gap: 12px; margin: 10px 0; font-size: 13px;">
+            <span id="modalRating" style="color: #ff9800; font-weight: bold;">★ 5.0 (0 রিভিউ)</span>
+            <span style="color: #ccc;">|</span>
+            <span id="modalSoldCount" style="background: #e8f5e9; color: #2e7d32; font-weight: 600; padding: 2px 8px; border-radius: 12px;">🛒 মোট বিক্রি: 0 টি</span>
+          </div>
+
+          <!-- Price Display -->
+          <div style="margin-bottom: 12px;">
+            <span id="modalPrice" style="color: var(--primary-orange); font-size: 22px; font-weight: 800;"></span>
+            <span id="modalOrigPrice" style="text-decoration: line-through; color: #aaa; font-size: 14px; margin-left: 8px;"></span>
+          </div>
+
+          <!-- Description -->
+          <div style="margin-bottom: 15px;">
+            <strong style="font-size: 13px; color: #444;">পণ্যের বিবরণ:</strong>
+            <div id="modalDesc" style="color: #555; line-height: 1.5; margin-top: 4px; font-size: 13px; max-height: 120px; overflow-y: auto;"></div>
+          </div>
+
+          <button class="btn-buy-now" id="modalBuyBtn" style="padding: 12px; width: 100%; border-radius: 8px; font-size: 15px;">এখনই কিনুন</button>
+        </div>
+      </div>
+
+      <!-- Bottom Section: Reviews & Rating Form -->
+      <div style="margin-top: 25px; border-top: 1px solid #eee; padding-top: 15px;">
+        <h3 style="font-size: 16px; color: #2c3e50; margin-bottom: 12px;">কাস্টমার রিভিউ ও মতামত</h3>
+        
+        <!-- Verified Purchase Check Review Form -->
+        <div style="background: #fdf2e9; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ffe0b2;">
+          <small style="font-weight: bold; color: #d35400;">📦 পণ্যটি ডেলিভারি পেয়ে থাকলে রিভিউ দিন:</small>
+          <div style="display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap;">
+            <input type="tel" id="revPhone" placeholder="ক্রয়কৃত মোবাইল নম্বর" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; flex: 1; min-width: 130px;" required>
+            <input type="text" id="revUserName" placeholder="আপনার নাম" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; flex: 1; min-width: 130px;" required>
+            <select id="revRating" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+              <option value="5">★★★★★ (৫/৫)</option>
+              <option value="4">★★★★☆ (৪/৫)</option>
+              <option value="3">★★★☆☆ (৩/৫)</option>
+              <option value="2">★★☆☆☆ (২/৫)</option>
+              <option value="1">★☆☆☆☆ (১/৫)</option>
+            </select>
+          </div>
+          <textarea id="revComment" rows="2" placeholder="পণ্যটি সম্পর্কে আপনার অভিজ্ঞতা লিখুন..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;"></textarea>
+          <button id="revSubmitBtn" onclick="submitVerifiedReview()" style="background: var(--primary-orange); color: white; border: none; padding: 6px 15px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; margin-top: 6px;">ভেরিফাইড রিভিউ সাবমিট করুন</button>
+        </div>
+
+        <!-- Dynamic Reviews Container -->
+        <div id="modalReviewList" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- DYNAMIC FOOTER -->
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h3 id="ftCompName">Bazari</h3>
+        <p id="ftAbout">Your trusted online shopping destination. Dedicated to delivering quality products fast.</p>
+      </div>
+      <div class="footer-col">
+        <h3>Contact Us</h3>
+        <p>📱 Phone: <span id="ftPhone">01700000000</span></p>
+        <p>✉️ Email: <span id="ftEmail">info@bazari.com</span></p>
+        <p>📍 Address: <span id="ftAddress">Kurigram, Bangladesh</span></p>
+      </div>
+      <div class="footer-col">
+        <h3>Quick Links</h3>
+        <ul>
+          <li><a onclick="showView('shopView')" style="color:#bdc3c7; cursor:pointer;">Shop</a></li>
+          <li><a onclick="showView('accountView')" style="color:#bdc3c7; cursor:pointer;">My Account</a></li>
+          <li><a onclick="showView('cartView')" style="color:#bdc3c7; cursor:pointer;">Cart</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      &copy; 2026 <span id="ftCopyright">Bazari</span>. All Rights Reserved.
+    </div>
+  </footer>
+
+  <script>
+    const dhakaCityThanas = [
+      "Adabor", "Badda", "Banani", "Bangshal", "Cantonment", "Chawkbazar", "Darus Salam", "Dhanmondi", 
+      "Gendaria", "Gulshan", "Hazaribagh", "Jatrabari", "Kadamtali", "Kafrul", "Kalabagan", "Kamrangirchar", 
+      "Khilgaon", "Khilkhet", "Kotwali", "Lalbagh", "Mirpur", "Mohammadpur", "Motijheel", "New Market", 
+      "Pallabi", "Paltan", "Ramna", "Rampura", "Sabujbagh", "Shah Ali", "Shahbagh", "Sher-e-Bangla Nagar", 
+      "Shyampur", "Sutrapur", "Tejgaon", "Tejgaon Industrial Area", "Turag", "Uttara East", "Uttara West", "Vatara"
+    ];
+
+    const bdData = {
+      "Bagerhat": ["Bagerhat Sadar", "Chitalmari", "Fakirhat", "Kachua", "Mollahat", "Mongla", "Morrelganj", "Rampal", "Sarankhola"],
+      "Bandarban": ["Ali Kadam", "Bandarban Sadar", "Lama", "Naikhongchhari", "Rowangchhari", "Ruma", "Thanchi"],
+      "Barguna": ["Amtali", "Bamna", "Barguna Sadar", "Betagi", "Patharghata", "Taltali"],
+      "Barishal": ["Agailjhara", "Babuganj", "Bakerganj", "Banaripara", "Barishal Sadar", "Gournadi", "Hizla", "Mehendiganj", "Muladi", "Wazirpur"],
+      "Bhola": ["Bhola Sadar", "Burhanuddin", "Char Fasson", "Daulatkhan", "Lalmohan", "Manpura", "Tazumuddin"],
+      "Bogra": ["Adamdighi", "Bogra Sadar", "Dhunat", "Dhupchanchia", "Gabtali", "Kahaloo", "Nandigram", "Sariakandi", "Shajahanpur", "Sherpur", "Shibganj", "Sonatala"],
+      "Brahmanbaria": ["Akhaura", "Ashuganj", "Bancharampur", "Brahmanbaria Sadar", "Kasba", "Nabinagar", "Nasirnagar", "Sarail", "Bijoynagar"],
+      "Chandpur": ["Chandpur Sadar", "Faridganj", "Haimchar", "Hajiganj", "Kachua", "Matlab North", "Matlab South", "Shahrasti"],
+      "Chapai Nawabganj": ["Bholahat", "Chapai Nawabganj Sadar", "Gomastapur", "Nachole", "Shibganj"],
+      "Chattogram": ["Anwara", "Banshkhali", "Boalkhali", "Chandanaish", "Fatikchhari", "Hathazari", "Karnafuli", "Lohagara", "Mirsarai", "Patiya", "Rangunia", "Raozan", "Sandwip", "Satkania", "Sitakunda", "Kotwali", "Panchlaish", "Halishahar", "Khulshi", "Patenga"],
+      "Chuadanga": ["Alamdanga", "Chuadanga Sadar", "Damurhuda", "Jibannagar"],
+      "Comilla": ["Barura", "Brahmanpara", "Burichang", "Chandina", "Chouddagram", "Comilla Sadar", "Comilla Sadar South", "Daudkandi", "Debidwar", "Homna", "Laksam", "Lalmai", "Meghna", "Monohargonj", "Muradnagar", "Nangalkot", "Titas"],
+      "Cox's Bazar": ["Chakaria", "Cox's Bazar Sadar", "Kutubdia", "Maheshkhali", "Pekua", "Ramu", "Teknaf", "Ukhia"],
+      "Dhaka": ["Adabor", "Badda", "Banani", "Bangshal", "Cantonment", "Chawkbazar", "Darus Salam", "Dhanmondi", "Dhamrai", "Dohar", "Gendaria", "Gulshan", "Hazaribagh", "Jatrabari", "Kadamtali", "Kafrul", "Kalabagan", "Kamrangirchar", "Keraniganj", "Khilgaon", "Khilkhet", "Kotwali", "Lalbagh", "Mirpur", "Mohammadpur", "Motijheel", "Nawabganj", "New Market", "Pallabi", "Paltan", "Ramna", "Rampura", "Sabujbagh", "Savar", "Shah Ali", "Shahbagh", "Sher-e-Bangla Nagar", "Shyampur", "Sutrapur", "Tejgaon", "Tejgaon Industrial Area", "Turag", "Uttara East", "Uttara West", "Vatara"],
+      "Dinajpur": ["Nawabganj", "Birganj", "Biral", "Bochaganj", "Chirirbandar", "Phulbari", "Ghoraghat", "Hakimpur", "Kaharole", "Khansama", "Dinajpur Sadar", "Parbatipur"],
+      "Faridpur": ["Alfa Danga", "Bhanga", "Boalmari", "Charbhadrasan", "Faridpur Sadar", "Madhukhali", "Nagarkanda", "Sadarpur", "Saltha"],
+      "Feni": ["Chhagalnaiya", "Daganbhuiyan", "Feni Sadar", "Fulgazi", "Parshuram", "Sonagazi"],
+      "Gaibandha": ["Phulchhari", "Gaibandha Sadar", "Gobindaganj", "Palashbari", "Sadullapur", "Saghata", "Sundarganj"],
+      "Gazipur": ["Gazipur Sadar", "Kaliakair", "Kaliganj", "Kapasia", "Sreepur"],
+      "Gopalganj": ["Gopalganj Sadar", "Kashiani", "Kotalipara", "Muksudpur", "Tungipara"],
+      "Habiganj": ["Ajmiriganj", "Bahubal", "Baniyachong", "Chunarughat", "Habiganj Sadar", "Lakhai", "Madhabpur", "Nabiganj", "Sayestaganj"],
+      "Jamalpur": ["Baksiganj", "Dewanganj", "Isampur", "Jamalpur Sadar", "Madarganj", "Melandaha", "Sarishabari"],
+      "Jeshore": ["Abhaynagar", "Bagherpara", "Chaugachha", "Jeshore Sadar", "Jhikargachha", "Keshabpur", "Manirampur", "Sharsha"],
+      "Jhalokati": ["Jhalokati Sadar", "Kathalia", "Nalchity", "Rajapur"],
+      "Jhenaidah": ["Harakunda", "Jhenaidah Sadar", "Kaliganj", "Kotchandpur", "Maheshpur", "Shailkupa"],
+      "Joypurhat": ["Akkelpur", "Joypurhat Sadar", "Kalai", "Khetlal", "Panchbibi"],
+      "Khagrachhari": ["Dighinala", "Khagrachhari Sadar", "Laxmichhari", "Mahalchhari", "Manikchhari", "Matiranga", "Panchhari", "Ramgarh"],
+      "Khulna": ["Batiaghata", "Dacope", "Dumuria", "Dighalia", "Khulna Sadar", "Koyra", "Paikgachha", "Phultala", "Rupsha"],
+      "Kishoreganj": ["Austagram", "Itna", "Karimganj", "Katiadi", "Kishoreganj Sadar", "Kuliarchar", "Mithamain", "Nikli", "Pakundia", "Bhairab", "Tarail"],
+      "Kurigram": ["Bhurungamari", "Char Rajibpur", "Chilmari", "Phulbari", "Kurigram Sadar", "Nageshwari", "Rajarhat", "Roumari", "Ulipur"],
+      "Kushtia": ["Bheramara", "Daulatpur", "Khoksa", "Kumarkhali", "Kushtia Sadar", "Mirpur"],
+      "Lakshmipur": ["Kamalnagar", "Lakshmipur Sadar", "Raipur", "Ramganj", "Ramgati"],
+      "Lalmonirhat": ["Aditmari", "Hatibandha", "Kaliganj", "Lalmonirhat Sadar", "Patgram"],
+      "Madaripur": ["Kalkini", "Madaripur Sadar", "Rajoir", "Shivchar"],
+      "Magura": ["Magura Sadar", "Mohammadpur", "Shalikha", "Sreepur"],
+      "Manikganj": ["Daulatpur", "Gheor", "Harirampur", "Manikganj Sadar", "Saturia", "Shibalaya", "Singair"],
+      "Meherpur": ["Gangni", "Meherpur Sadar", "Mujibnagar"],
+      "Moulvibazar": ["Barlekha", "Kamalganj", "Kulaura", "Moulvibazar Sadar", "Rajnagar", "Sreemangal", "Juri"],
+      "Munshiganj": ["Gazaria", "Lohajang", "Munshiganj Sadar", "Sirajdikhan", "Sreenagar", "Tongibari"],
+      "Mymensingh": ["Bhaluka", "Dhobaura", "Fulbaria", "Gaffargaon", "Gauripur", "Haluaghat", "Ishwarganj", "Mymensingh Sadar", "Muktagachha", "Nandail", "Phulpur", "Trishal", "TaraKanda"],
+      "Naogaon": ["Atrai", "Badalgachhi", "Dhamoirhat", "Manda", "Mahadevpur", "Naogaon Sadar", "Niamatpur", "Patnitala", "Porsha", "Raninagar", "Sapahar"],
+      "Narail": ["Kalia", "Lohagara", "Narail Sadar"],
+      "Narayanganj": ["Araihazar", "Bandar", "Narayanganj Sadar", "Rupganj", "Sonargaon"],
+      "Narsingdi": ["Belabo", "Monohardi", "Narsingdi Sadar", "Palash", "Raipura", "Shibpur"],
+      "Natore": ["Bagatipara", "Baraigram", "Gurudaspur", "Lalpur", "Natore Sadar", "Singra", "Naldanga"],
+      "Netrokona": ["Atpara", "Barhatta", "Durgapur", "Khaliajuri", "Kalmakanda", "Kendua", "Madan", "Mohanganj", "Netrokona Sadar", "Purbadhala"],
+      "Nilphamari": ["Dimla", "Domar", "Jaldhaka", "Kishoreganj", "Nilphamari Sadar", "Saidpur"],
+      "Noakhali": ["Begumganj", "Chatkhil", "Companiganj", "Hatiya", "Kabirhat", "Noakhali Sadar", "Senbagh", "Sonaimuri", "Subarnachar"],
+      "Pabna": ["Atgharia", "Bera", "Bhangura", "Chatmohar", "Faridpur", "Ishwardi", "Pabna Sadar", "Santhia", "Sujanagar"],
+      "Panchagarh": ["Atwari", "Boda", "Debiganj", "Panchagarh Sadar", "Tetulia"],
+      "Patuakhali": ["Bauphal", "Dashmina", "Galachipa", "Kalapara", "Mirzaganj", "Patuakhali Sadar", "Rangabali", "Dumki"],
+      "Pirojpur": ["Bhandaria", "Kawkhali", "Mathbaria", "Nazirpur", "Pirojpur Sadar", "Nesarabad", "Zianagar"],
+      "Rajbari": ["Baliakandi", "Goalandaghat", "Pangsha", "Rajbari Sadar", "Kalukhali"],
+      "Rajshahi": ["Bagha", "Bagmara", "Charghat", "Durgapur", "Godagari", "Mohanpur", "Paba", "Puthia", "Rajshahi Sadar", "Tanore"],
+      "Rangamati": ["Bagaichhari", "Barkal", "Kawkhali", "Belaichhari", "Kaptai", "Juraichhari", "Langadu", "Naniarchar", "Rajasthali", "Rangamati Sadar"],
+      "Rangpur": ["Badarganj", "Mithapukur", "Gangachhara", "Kaunia", "Rangpur Sadar", "Pirgachha", "Pirganj", "Taraganj"],
+      "Satkhira": ["Assasuni", "Kalaroa", "Kaliganj", "Satkhira Sadar", "Shyamnagar", "Tala"],
+      "Shariatpur": ["Bhedarganj", "Damudya", "Gosairhat", "Naria", "Shariatpur Sadar", "Zajira"],
+      "Sherpur": ["Jhenaigati", "Nakla", "Nalitabari", "Sherpur Sadar", "Sreebardi"],
+      "Sirajganj": ["Belkuchi", "Chauhali", "Kamarkhanda", "Kazipur", "Rayganj", "Shahjadpur", "Sirajganj Sadar", "Tarash", "Ullahpara"],
+      "Sunamganj": ["Bishwamambharpur", "Chhatak", "Derai", "Dharamapasha", "Dowarabazar", "Jagannathpur", "Jamalganj", "Sullah", "Sunamganj Sadar", "Tahirpur", "South Sunamganj"],
+      "Sylhet": ["Balaganj", "Beanibazar", "Bishwanath", "Companiganj", "Fenchuganj", "Golapganj", "Gowainghat", "Jaintiapur", "Kanaighat", "Sylhet Sadar", "Zakiganj", "South Surma"],
+      "Tangail": ["Gopalpur", "Basail", "Bhuapur", "Delduar", "Ghatail", "Kalihati", "Madhupur", "Mirzapur", "Nagarpur", "Sakhipur", "Tangail Sadar", "Dhanbari"],
+      "Thakurgaon": ["Baliadangi", "Haripur", "Pirganj", "Ranisankail", "Thakurgaon Sadar"]
+    };
+
+    let globalProducts = [];
+    let globalOrders = [];
+    let globalBanners = [];
+    let globalPaymentMethods = [];
+    let cart = [];
+    let deliveryConfig = { insideDhaka: 60, outsideDhaka: 120 };
+    let activeCustomerPhone = "";
+    let currentModalProductId = null;
+
+    function showView(viewId) {
+      document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById(viewId).classList.add('active');
+      window.scrollTo(0, 0);
+      if(viewId === 'cartView') renderCart();
+      if(viewId === 'accountView' && activeCustomerPhone) {
+        document.getElementById('userPhoneSearch').value = activeCustomerPhone;
+        loadUserAccount();
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      populateDistricts();
+      const checkFirebase = setInterval(() => {
+        if (window.db && window.fs) {
+          clearInterval(checkFirebase);
+          initFirebaseListeners();
+          fetchSettings();
+        }
+      }, 100);
+    });
+
+    function populateDistricts() {
+      const distSelect = document.getElementById('custDistrict');
+      distSelect.innerHTML = '<option value="">Select District</option>';
+      Object.keys(bdData).sort().forEach(district => {
+        distSelect.innerHTML += `<option value="${district}">${district}</option>`;
+      });
+    }
+
+    function onDistrictChange(selectedDistrict) {
+      const upazilaSelect = document.getElementById('custUpazila');
+      upazilaSelect.innerHTML = '<option value="">Select Thana/Upazila</option>';
+      
+      if(selectedDistrict && bdData[selectedDistrict]) {
+        bdData[selectedDistrict].slice().sort().forEach(upazila => {
+          upazilaSelect.innerHTML += `<option value="${upazila}">${upazila}</option>`;
+        });
+      } else {
+        upazilaSelect.innerHTML = '<option value="">Select District First</option>';
+      }
+
+      if (selectedDistrict !== "Dhaka") {
+        document.getElementById('deliveryArea').value = "outside";
+        updateDeliveryChargeUI();
+      }
+    }
+
+    function onUpazilaChange(selectedUpazila) {
+      const selectedDistrict = document.getElementById('custDistrict').value;
+      const deliveryAreaSelect = document.getElementById('deliveryArea');
+
+      if (selectedDistrict === "Dhaka" && dhakaCityThanas.includes(selectedUpazila)) {
+        deliveryAreaSelect.value = "inside";
+      } else {
+        deliveryAreaSelect.value = "outside";
+      }
+      updateDeliveryChargeUI();
+    }
+
+    async function fetchSettings() {
+      try {
+        const delSnap = await fs.getDoc(fs.doc(db, "settings", "delivery"));
+        if(delSnap.exists()) {
+          deliveryConfig = delSnap.data();
+          document.querySelectorAll('.lbl-dhaka').forEach(el => el.innerText = deliveryConfig.insideDhaka || 60);
+          document.querySelectorAll('.lbl-outside').forEach(el => el.innerText = deliveryConfig.outsideDhaka || 120);
+        }
+
+        const ftSnap = await fs.getDoc(fs.doc(db, "settings", "footer"));
+        if(ftSnap.exists()) {
+          const d = ftSnap.data();
+          if(d.compName) {
+            document.getElementById('ftCompName').innerText = d.compName;
+            document.getElementById('ftCopyright').innerText = d.compName;
+          }
+          if(d.about) document.getElementById('ftAbout').innerText = d.about;
+          if(d.phone) document.getElementById('ftPhone').innerText = d.phone;
+          if(d.email) document.getElementById('ftEmail').innerText = d.email;
+          if(d.address) document.getElementById('ftAddress').innerText = d.address;
+        }
+      } catch(e){ console.error(e); }
+    }
+
+    function initFirebaseListeners() {
+      fs.onSnapshot(fs.collection(db, "products"), (snapshot) => {
+        globalProducts = [];
+        snapshot.forEach((doc) => globalProducts.push({ id: doc.id, ...doc.data() }));
+        renderProducts(globalProducts);
+      });
+
+      fs.onSnapshot(fs.collection(db, "orders"), (snapshot) => {
+        globalOrders = [];
+        snapshot.forEach((doc) => globalOrders.push({ firestoreId: doc.id, ...doc.data() }));
+        if(activeCustomerPhone) loadUserAccount();
+      });
+
+      fs.onSnapshot(fs.collection(db, "categories"), (snapshot) => {
+        const catSelect = document.getElementById('categoryFilter');
+        catSelect.innerHTML = '<option value="All">All Categories</option>';
+        snapshot.forEach((doc) => {
+          catSelect.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`;
+        });
+      });
+
+      fs.onSnapshot(fs.collection(db, "banners"), (snapshot) => {
+        globalBanners = [];
+        snapshot.forEach((doc) => globalBanners.push(doc.data().image));
+        renderBillboardSlider();
+      });
+
+      fs.onSnapshot(fs.collection(db, "paymentMethods"), (snapshot) => {
+        globalPaymentMethods = [];
+        snapshot.forEach((doc) => globalPaymentMethods.push({ id: doc.id, ...doc.data() }));
+        renderPaymentMethodsUI();
+      });
+    }
+
+    function renderBillboardSlider() {
+      const slider = document.getElementById('billboardSlider');
+      slider.innerHTML = '';
+      if(globalBanners.length === 0) { slider.style.display = 'none'; return; }
+      slider.style.display = 'block';
+
+      globalBanners.forEach((imgSrc, index) => {
+        slider.innerHTML += `<div class="billboard-slide ${index === 0 ? 'active' : ''}"><img src="${imgSrc}"></div>`;
+      });
+
+      if(globalBanners.length > 1) {
+        let current = 0;
+        setInterval(() => {
+          const slides = document.querySelectorAll('.billboard-slide');
+          if(slides.length === 0) return;
+          slides[current].classList.remove('active');
+          current = (current + 1) % slides.length;
+          slides[current].classList.add('active');
+        }, 3500);
+      }
+    }
+
+    function renderProducts(products) {
+      const grid = document.getElementById('productGrid');
+      grid.innerHTML = '';
+
+      if(!products || products.length === 0) {
+        grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px;">No products found.</p>';
+        return;
+      }
+
+      products.forEach(p => {
+        const discountPct = p.discount || 0;
+        const finalPrice = Math.round(p.price - (p.price * (discountPct / 100)));
+        let displayImg = (p.images && p.images.length > 0) ? p.images[0] : (p.image || '');
+
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+          <img src="${displayImg}" onclick="openProductModal('${p.id}')">
+          <div class="product-title" title="${p.name}">${p.name}</div>
+          <div class="card-rating-badge" id="cardRating_${p.id}">★ 5.0 (0)</div>
+          <div class="price-tag">
+            ${discountPct > 0 ? `<span class="orig-price">৳${p.price}</span>` : ''}
+            <span class="disc-price">৳${finalPrice}</span>
+          </div>
+
+          <div>
+            <div class="btn-group">
+              <button class="btn-add-cart" onclick="addToCart('${p.id}')">Add to Cart</button>
+              <button class="btn-buy-now" onclick="buyNow('${p.id}')">Buy Now</button>
+            </div>
+            <button class="btn-details" onclick="openProductModal('${p.id}')">View Details</button>
+          </div>
+        `;
+        grid.appendChild(card);
+
+        // Fetch & calculate average rating directly on card
+        fs.onSnapshot(fs.collection(db, "products", p.id, "reviews"), (snap) => {
+          let totalStars = 0, count = 0;
+          snap.forEach(rDoc => {
+            count++;
+            totalStars += parseInt(rDoc.data().rating || 5);
+          });
+          const badge = document.getElementById(`cardRating_${p.id}`);
+          if (badge) {
+            if (count > 0) {
+              const avg = (totalStars / count).toFixed(1);
+              badge.innerText = `★ ${avg} (${count})`;
+            } else {
+              badge.innerText = `★ 5.0 (0)`;
+            }
+          }
+        });
+      });
+    }
+
+    function filterProducts() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const category = document.getElementById('categoryFilter').value;
+
+      const filtered = globalProducts.filter(p => {
+        const matchesSearch = p.name ? p.name.toLowerCase().includes(search) : false;
+        const matchesCat = category === 'All' || p.category === category;
+        return matchesSearch && matchesCat;
+      });
+      renderProducts(filtered);
+    }
+
+    function addToCart(productId) {
+      const product = globalProducts.find(p => p.id === productId);
+      if (!product) return;
+
+      const existing = cart.find(item => item.id === productId);
+      const discountPct = product.discount || 0;
+      const finalPrice = Math.round(product.price - (product.price * (discountPct / 100)));
+
+      if(existing) {
+        existing.qty += 1;
+      } else {
+        cart.push({ ...product, price: finalPrice, qty: 1 });
+      }
+
+      updateCartBadge();
+      alert('Product added to cart!');
+    }
+
+    function buyNow(productId) {
+      const product = globalProducts.find(p => p.id === productId);
+      if (!product) return;
+
+      const existing = cart.find(item => item.id === productId);
+      const discountPct = product.discount || 0;
+      const finalPrice = Math.round(product.price - (product.price * (discountPct / 100)));
+
+      if(!existing) {
+        cart.push({ ...product, price: finalPrice, qty: 1 });
+      }
+
+      updateCartBadge();
+      showView('cartView');
+    }
+
+    async function openProductModal(pId) {
+      const p = globalProducts.find(item => item.id === pId);
+      if(!p) return;
+
+      currentModalProductId = pId;
+
+      // 1. Gallery
+      const modalGallery = document.getElementById('modalGallery');
+      modalGallery.innerHTML = '';
+
+      if(p.images && p.images.length > 0) {
+        p.images.forEach(img => modalGallery.innerHTML += `<img src="${img}" style="height:180px; min-width:140px; border-radius:8px; object-fit:cover; border:1px solid #eee;">`);
+      } else if(p.image) {
+        modalGallery.innerHTML += `<img src="${p.image}" style="height:180px; min-width:140px; border-radius:8px; object-fit:cover; border:1px solid #eee;">`;
+      }
+      if(p.video) modalGallery.innerHTML += `<video src="${p.video}" controls style="height:180px; border-radius:8px;"></video>`;
+
+      // 2. Price Details
+      const discountPct = p.discount || 0;
+      const finalPrice = Math.round(p.price - (p.price * (discountPct / 100)));
+
+      document.getElementById('modalTitle').innerText = p.name;
+      document.getElementById('modalPrice').innerText = '৳' + finalPrice;
+      
+      const origPriceElem = document.getElementById('modalOrigPrice');
+      if(discountPct > 0) {
+        origPriceElem.innerText = '৳' + p.price;
+        origPriceElem.style.display = 'inline';
+      } else {
+        origPriceElem.style.display = 'none';
+      }
+
+      document.getElementById('modalDesc').innerText = p.description || 'কোনো বিবরণ দেওয়া নেই।';
+
+      // 3. Purchase History Stats
+      const totalSold = globalOrders.reduce((acc, order) => {
+        if (order.items) {
+          const itemMatch = order.items.find(i => i.id === pId);
+          if (itemMatch) acc += (itemMatch.qty || 1);
+        }
+        return acc;
+      }, 0);
+      document.getElementById('modalSoldCount').innerText = `🛒 মোট বিক্রি: ${totalSold} টি`;
+
+      // 4. Load Reviews
+      loadModalReviews(pId);
+
+      // Buy Button Action
+      document.getElementById('modalBuyBtn').onclick = () => {
+        closeModal();
+        buyNow(p.id);
+      };
+
+      document.getElementById('productModal').style.display = 'flex';
+    }
+
+    function loadModalReviews(productId) {
+      const reviewContainer = document.getElementById('modalReviewList');
+      reviewContainer.innerHTML = '';
+
+      fs.onSnapshot(fs.collection(db, "products", productId, "reviews"), (snapshot) => {
+        reviewContainer.innerHTML = '';
+        let totalStars = 0;
+        let count = 0;
+
+        snapshot.forEach((doc) => {
+          const r = doc.data();
+          count++;
+          totalStars += parseInt(r.rating || 5);
+
+          reviewContainer.innerHTML += `
+            <div style="background: #f9f9f9; padding: 8px 12px; border-radius: 6px; font-size: 12px; border-left: 3px solid var(--primary-orange);">
+              <div style="display: flex; justify-content: space-between;">
+                <strong>${r.userName || 'গোপন গ্রাহক'} <span style="font-size:10px; color:#2e7d32; background:#e8f5e9; padding:1px 4px; border-radius:3px; margin-left:4px;">✔ ভেরিফাইড ক্রেতা</span></strong>
+                <span style="color: #ff9800;">${'★'.repeat(r.rating || 5)}</span>
+              </div>
+              <p style="color: #555; margin-top: 3px;">${r.comment || ''}</p>
+            </div>
+          `;
+        });
+
+        if (count === 0) {
+          reviewContainer.innerHTML = '<p style="font-size:12px; color:#888;">এখনো কোনো রিভিউ দেওয়া হয়নি।</p>';
+          document.getElementById('modalRating').innerText = '★ ৫.০ (০ রিভিউ)';
+        } else {
+          const avg = (totalStars / count).toFixed(1);
+          document.getElementById('modalRating').innerText = `★ ${avg} (${count} টি রিভিউ)`;
+        }
+      });
+    }
+
+    // DELIVERED CUSTOMER SINGLE REVIEW ONLY SYSTEM
+    async function submitVerifiedReview() {
+      if (!currentModalProductId) return;
+      const phone = document.getElementById('revPhone').value.trim();
+      const name = document.getElementById('revUserName').value.trim();
+      const rating = parseInt(document.getElementById('revRating').value);
+      const comment = document.getElementById('revComment').value.trim();
+
+      if (!phone || !name || !comment) {
+        return alert('অনুগ্রহ করে মোবাইল নম্বর, নাম এবং কমেন্ট সম্পূর্ণ লিখুন।');
+      }
+
+      const btn = document.getElementById('revSubmitBtn');
+      btn.innerText = "যাচাই করা হচ্ছে..."; btn.disabled = true;
+
+      try {
+        // Step 1: Check if product status is 'Delivered' for this customer
+        const isDelivered = globalOrders.some(order => {
+          const matchPhone = order.customer && order.customer.phone === phone;
+          const matchItem = order.items && order.items.some(i => i.id === currentModalProductId);
+          const matchStatus = order.status === 'Delivered';
+          return matchPhone && matchItem && matchStatus;
+        });
+
+        if (!isDelivered) {
+          alert('দুঃখিত! শুধুমাত্র পণ্যটি সফলভাবে ডেলিভারি (Delivered) হওয়ার পর ক্রেতারা রিভিউ দিতে পারবেন।');
+          return;
+        }
+
+        // Step 2: Check if this user already submitted a review for this product
+        const reviewsRef = fs.collection(db, "products", currentModalProductId, "reviews");
+        const q = fs.query(reviewsRef, fs.where("userPhone", "==", phone));
+        const querySnapshot = await fs.getDocs(q);
+
+        if (!querySnapshot.empty) {
+          alert('আপনি ইতিমধ্যেই এই পণ্যটিতে একটি রিভিউ প্রদান করেছেন। একটি পণ্যে একজন ক্রেতা একাধিক রিভিউ দিতে পারবেন না।');
+          return;
+        }
+
+        // Step 3: Add New Review
+        await fs.addDoc(reviewsRef, {
+          userPhone: phone,
+          userName: name,
+          rating: rating,
+          comment: comment,
+          createdAt: new Date()
+        });
+
+        document.getElementById('revPhone').value = '';
+        document.getElementById('revUserName').value = '';
+        document.getElementById('revComment').value = '';
+        alert('ধন্যবাদ! আপনার ভেরিফাইড রিভিউটি সফলভাবে প্রকাশিত হয়েছে।');
+
+      } catch (err) {
+        alert('ত্রুটি: ' + err.message);
+      } finally {
+        btn.innerText = "ভেরিফাইড রিভিউ সাবমিট করুন"; btn.disabled = false;
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('productModal').style.display = 'none';
+    }
+
+    function updateCartBadge() {
+      const totalQty = cart.reduce((sum, i) => sum + i.qty, 0);
+      document.getElementById('cartCount').innerText = totalQty;
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cartItemsList');
+      container.innerHTML = '';
+      let subTotal = 0;
+
+      if(cart.length === 0) {
+        container.innerHTML = '<p style="color:#777;">Your cart is currently empty.</p>';
+      } else {
+        cart.forEach((item, index) => {
+          const itemTotal = item.price * item.qty;
+          subTotal += itemTotal;
+          container.innerHTML += `
+            <div class="cart-item">
+              <div>
+                <strong>${item.name}</strong><br>
+                <small>৳${item.price}</small>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button onclick="changeCartQty(${index}, -1)" style="padding:2px 8px; font-weight:bold;">-</button>
+                <span>${item.qty}</span>
+                <button onclick="changeCartQty(${index}, 1)" style="padding:2px 8px; font-weight:bold;">+</button>
+                <strong style="margin-left:10px;">৳${itemTotal}</strong>
+                <button onclick="removeFromCart(${index})" style="background:none; border:none; color:red; cursor:pointer; margin-left:10px;">❌</button>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      document.getElementById('subTotal').innerText = subTotal;
+      updateDeliveryChargeUI();
+    }
+
+    function changeCartQty(index, change) {
+      cart[index].qty += change;
+      if(cart[index].qty <= 0) cart.splice(index, 1);
+      updateCartBadge();
+      renderCart();
+    }
+
+    function removeFromCart(index) {
+      cart.splice(index, 1);
+      updateCartBadge();
+      renderCart();
+    }
+
+    function updateDeliveryChargeUI() {
+      const area = document.getElementById('deliveryArea').value;
+      const charge = (area === 'inside') ? (deliveryConfig.insideDhaka || 60) : (deliveryConfig.outsideDhaka || 120);
+      const subTotal = parseFloat(document.getElementById('subTotal').innerText) || 0;
+
+      document.getElementById('deliveryCharge').innerText = charge;
+      document.getElementById('cartTotal').innerText = subTotal + charge;
+    }
+
+    async function fetchCustomerProfile(phone) {
+      if(!phone || phone.trim().length < 11) return;
+      activeCustomerPhone = phone.trim();
+      try {
+        const userSnap = await fs.getDoc(fs.doc(db, "customers", activeCustomerPhone));
+        if(userSnap.exists()) {
+          const u = userSnap.data();
+          document.getElementById('custName').value = u.name || '';
+          
+          if(u.district) {
+            document.getElementById('custDistrict').value = u.district;
+            onDistrictChange(u.district);
+            if(u.upazila) {
+              document.getElementById('custUpazila').value = u.upazila;
+              onUpazilaChange(u.upazila);
+            }
+          }
+
+          document.getElementById('custPostCode').value = u.postCode || '';
+          document.getElementById('custArea').value = u.area || '';
+          document.getElementById('custDetailAddress').value = u.detailAddress || '';
+        }
+      } catch(e) { console.error(e); }
+    }
+
+    function renderPaymentMethodsUI() {
+      const container = document.getElementById('paymentMethodsContainer');
+      container.innerHTML = `
+        <div class="pay-method-item">
+          <input type="radio" id="payCOD" name="paymentMethod" value="COD" checked onclick="togglePaymentDetail('COD')">
+          <label for="payCOD"><strong>Cash on Delivery (COD)</strong></label>
+        </div>
+      `;
+
+      globalPaymentMethods.forEach(m => {
+        container.innerHTML += `
+          <div class="pay-method-item">
+            <input type="radio" id="pay_${m.id}" name="paymentMethod" value="${m.name}" onclick="togglePaymentDetail('${m.id}')">
+            <label for="pay_${m.id}"><strong>${m.name}</strong> (${m.number})</label>
+          </div>
+        `;
+      });
+    }
+
+    function togglePaymentDetail(methodId) {
+      const infoBox = document.getElementById('dynamicPayInfo');
+      if(methodId === 'COD') {
+        infoBox.style.display = 'none';
+        return;
+      }
+      const selected = globalPaymentMethods.find(m => m.id === methodId);
+      if(selected) {
+        infoBox.style.display = 'block';
+        document.getElementById('payInstructionText').innerText = `Please make your payment to our ${selected.name} number (${selected.number}). Notes: ${selected.instruction || ''}`;
+      }
+    }
+
+    async function processCheckout(e) {
+      e.preventDefault();
+      if(cart.length === 0) return alert('Your cart is empty!');
+
+      const phone = document.getElementById('custPhone').value.trim();
+      const name = document.getElementById('custName').value.trim();
+      const district = document.getElementById('custDistrict').value;
+      const upazila = document.getElementById('custUpazila').value;
+      const postCode = document.getElementById('custPostCode').value.trim();
+      const areaName = document.getElementById('custArea').value.trim();
+      const detailAddress = document.getElementById('custDetailAddress').value.trim();
+      
+      if(!district || !upazila) {
+        return alert('Please select your District and Thana/Upazila!');
+      }
+
+      const paymentMethodRadio = document.querySelector('input[name="paymentMethod"]:checked');
+      const paymentMethod = paymentMethodRadio ? paymentMethodRadio.value : 'COD';
+      const area = document.getElementById('deliveryArea').value;
+
+      const delCharge = (area === 'inside') ? (deliveryConfig.insideDhaka || 60) : (deliveryConfig.outsideDhaka || 120);
+      const itemsTotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+      const totalAmount = itemsTotal + delCharge;
+
+      let paymentDetails = { method: paymentMethod, status: 'Pending' };
+
+      if(paymentMethod !== 'COD') {
+        const senderNum = document.getElementById('paySenderNum').value.trim();
+        const trxId = document.getElementById('payTrxId').value.trim();
+        if(!senderNum || !trxId) return alert('Please enter your payment phone number and TrxID!');
+        paymentDetails.senderNumber = senderNum;
+        paymentDetails.trxId = trxId;
+      }
+
+      const checkoutBtn = document.getElementById('checkoutBtn');
+      checkoutBtn.innerText = "Processing Order..."; checkoutBtn.disabled = true;
+
+      const trackId = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+
+      try {
+        await fs.setDoc(fs.doc(db, "customers", phone), {
+          name, phone, district, upazila, postCode, area: areaName, detailAddress,
+          lastUpdated: new Date()
+        });
+
+        await fs.addDoc(fs.collection(db, "orders"), {
+          orderId: trackId,
+          customer: { name, phone, district, upazila, postCode, area: areaName, detailAddress, deliveryArea: area },
+          items: [...cart],
+          deliveryCharge: delCharge,
+          amount: totalAmount,
+          payment: paymentDetails,
+          status: 'Placed',
+          createdAt: new Date().toLocaleDateString('en-US')
+        });
+
+        activeCustomerPhone = phone;
+        cart = [];
+        updateCartBadge();
+        document.getElementById('orderCheckoutForm').reset();
+        document.getElementById('custUpazila').innerHTML = '<option value="">Select District First</option>';
+        togglePaymentDetail('COD');
+
+        alert(`Order Placed Successfully!\nYour Track ID: ${trackId}\nYour customer account has been updated.`);
+        showView('accountView');
+      } catch (err) {
+        alert('Failed to place order: ' + err.message);
+      } finally {
+        checkoutBtn.innerText = "Confirm Order"; checkoutBtn.disabled = false;
+      }
+    }
+
+    async function loadUserAccount() {
+      const phoneInput = document.getElementById('userPhoneSearch').value.trim();
+      if(!phoneInput) return alert('Please enter your phone number!');
+      activeCustomerPhone = phoneInput;
+
+      const profileBox = document.getElementById('userProfileDisplay');
+      const historyBox = document.getElementById('userOrderHistory');
+
+      try {
+        const userSnap = await fs.getDoc(fs.doc(db, "customers", activeCustomerPhone));
+        if(userSnap.exists()) {
+          const u = userSnap.data();
+          profileBox.style.display = 'block';
+          profileBox.innerHTML = `
+            <h3>Customer Profile</h3>
+            <p><strong>Name:</strong> ${u.name || 'N/A'}</p>
+            <p><strong>Phone:</strong> ${u.phone || activeCustomerPhone}</p>
+            <p><strong>Address:</strong> ${u.detailAddress || ''}, ${u.area || ''}, ${u.upazila || ''}, ${u.district || ''} ${u.postCode ? '- ' + u.postCode : ''}</p>
+          `;
+        } else {
+          profileBox.style.display = 'block';
+          profileBox.innerHTML = `<p style="color:#666;">No saved profile details yet for <strong>${activeCustomerPhone}</strong>.</p>`;
+        }
+
+        const userOrders = globalOrders.filter(o => o.customer && o.customer.phone === activeCustomerPhone);
+
+        if(userOrders.length === 0) {
+          historyBox.innerHTML = '<p style="color:red; text-align:center; margin-top:15px;">No orders found for this phone number.</p>';
+          return;
+        }
+
+        let html = '<h3 style="margin-bottom:15px; text-align:left;">Lifetime Order History</h3>';
+        userOrders.forEach(order => {
+          const payMethod = order.payment?.method || 'COD';
+          const status = order.status || 'Placed';
+          let itemsSummary = order.items ? order.items.map(i => `${i.name} (x${i.qty})`).join(', ') : 'N/A';
+
+          html += `
+            <div style="background:#fff; padding:15px; border-radius:8px; border: 1px solid #ddd; margin-bottom:12px; text-align:left;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <strong>Order ID: ${order.orderId}</strong>
+                <span class="status-badge status-${status}">${status}</span>
+              </div>
+              <p style="font-size:13px; color:#555;"><strong>Date:</strong> ${order.createdAt || 'N/A'}</p>
+              <p style="font-size:13px; color:#555;"><strong>Items:</strong> ${itemsSummary}</p>
+              <p style="font-size:13px; color:#555;"><strong>Payment:</strong> ${payMethod}</p>
+              <p style="font-size:14px; color:var(--primary-orange); font-weight:bold; margin-top:5px;">Total Amount: ৳${order.amount}</p>
+            </div>
+          `;
+        });
+        historyBox.innerHTML = html;
+      } catch(e) {
+        console.error(e);
+        alert('Error loading account: ' + e.message);
+      }
+    }
+
+    showView('shopView');
+  </script>
+</body>
+</html>
