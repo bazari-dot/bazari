@@ -9,7 +9,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
-      getFirestore, collection, addDoc, onSnapshot, doc, getDoc, setDoc, query, where, getDocs 
+      getFirestore, collection, addDoc, onSnapshot, doc, getDoc, setDoc, updateDb, query, where, getDocs 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -583,7 +583,7 @@
           <div class="product-card">
             <img src="${displayImg}" onclick="openProductDetail('${p.id}')">
             <div class="product-title" title="${p.name}">${p.name}</div>
-            <div class="card-rating-badge" id="cardRating_${p.id}">★ 5.0 (0)</div>
+            <div class="card-rating-badge">★ 5.0 (0)</div>
             <div class="price-tag">
               ${discountPct > 0 ? `<span class="orig-price">৳${p.price}</span>` : ''}
               <span class="disc-price">৳${finalPrice}</span>
@@ -599,20 +599,6 @@
         `;
       });
       grid.innerHTML = html;
-
-      products.forEach(p => {
-        fs.onSnapshot(fs.collection(db, "products", p.id, "reviews"), (snap) => {
-          let totalStars = 0, count = 0;
-          snap.forEach(rDoc => {
-            count++;
-            totalStars += parseInt(rDoc.data().rating || 5);
-          });
-          const badge = document.getElementById(`cardRating_${p.id}`);
-          if (badge) {
-            badge.innerText = count > 0 ? `★ ${(totalStars / count).toFixed(1)} (${count})` : `★ 5.0 (0)`;
-          }
-        });
-      });
     }
 
     function filterProducts() {
