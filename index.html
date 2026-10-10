@@ -42,8 +42,11 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: var(--bg-color); color: var(--text-dark); display: flex; flex-direction: column; min-height: 100vh; }
 
-    header { background: var(--primary-orange); color: white; padding: 16px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
-    .brand-logo { font-size: 32px; font-weight: 900; letter-spacing: 0.5px; cursor: pointer; }
+    header { background: var(--primary-orange); color: white; padding: 12px 40px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
+    
+    .brand-logo { font-size: 28px; font-weight: 900; cursor: pointer; display: flex; align-items: center; gap: 10px; color: white; text-decoration: none; }
+    .brand-logo img { height: 42px; width: auto; object-fit: contain; border-radius: 6px; }
+
     nav { display: flex; gap: 20px; align-items: center; }
     nav a { color: white; text-decoration: none; font-weight: 700; font-size: 15px; cursor: pointer; }
 
@@ -80,12 +83,7 @@
     .btn-buy-now { background: var(--primary-orange); color: white; border: none; padding: 9px 5px; flex: 1; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
     .btn-details { background: #eeeeee; border: none; padding: 8px; width: 100%; border-radius: 4px; font-size: 12px; font-weight: 600; color: #555; cursor: pointer; }
 
-    .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:2000; padding:20px; }
-    .modal-content { background:white; padding:25px; border-radius:12px; max-width:750px; width:95%; max-height:90vh; overflow-y:auto; position:relative; }
-    .close-modal { position:absolute; top:15px; right:20px; font-size:24px; cursor:pointer; font-weight:bold; color:#777; z-index:10; }
-    .modal-gallery { display:flex; gap:10px; overflow-x:auto; margin-bottom:15px; padding-bottom:5px; }
-
-    .cart-summary { background: white; padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); max-width: 650px; margin: 0 auto; }
+    .cart-summary { background: white; padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); max-width: 800px; margin: 0 auto; }
     .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
     
     .address-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
@@ -115,7 +113,11 @@
 <body>
 
   <header>
-    <div class="brand-logo" onclick="showView('shopView')">Bazari</div>
+    <!-- লোগো ইমেজ না পাওয়া গেলেও 'Bazari' নাম শো করবে -->
+    <div class="brand-logo" onclick="showView('shopView')">
+      <img src="logo.jpg" alt="Bazari" onerror="this.style.display='none'">
+      <span>Bazari</span>
+    </div>
     <nav>
       <a onclick="showView('shopView')">Shop</a>
       <a onclick="showView('accountView')">My Account & Orders</a>
@@ -141,7 +143,68 @@
       <div id="productGrid" class="product-grid"></div>
     </section>
 
-    <!-- 2. CART VIEW -->
+    <!-- 2. PRODUCT DETAIL VIEW (পপআপের বদলে নতুন পেজ ভিউ) -->
+    <section id="productDetailView" class="view-section">
+      <div class="cart-summary">
+        <button onclick="showView('shopView')" style="background: none; border: none; color: var(--primary-orange); font-weight: bold; cursor: pointer; margin-bottom: 15px; font-size: 15px;">← ব্যাক টু শপ</button>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; align-items: start;">
+          <!-- Gallery Column -->
+          <div>
+            <div id="detailGallery" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px;"></div>
+          </div>
+
+          <!-- Details Column -->
+          <div>
+            <h2 id="detailTitle" style="font-size: 22px; font-weight: 700; color: #2c3e50; line-height: 1.3;"></h2>
+            
+            <div style="display: flex; align-items: center; gap: 12px; margin: 10px 0; font-size: 13px;">
+              <span id="detailRating" style="color: #ff9800; font-weight: bold;">★ 5.0 (0 রিভিউ)</span>
+              <span style="color: #ccc;">|</span>
+              <span id="detailSoldCount" style="background: #e8f5e9; color: #2e7d32; font-weight: 600; padding: 2px 8px; border-radius: 12px;">🛒 মোট বিক্রি: 0 টি</span>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+              <span id="detailPrice" style="color: var(--primary-orange); font-size: 24px; font-weight: 800;"></span>
+              <span id="detailOrigPrice" style="text-decoration: line-through; color: #aaa; font-size: 14px; margin-left: 8px;"></span>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+              <strong style="font-size: 13px; color: #444;">পণ্যের বিবরণ:</strong>
+              <div id="detailDesc" style="color: #555; line-height: 1.6; margin-top: 6px; font-size: 14px;"></div>
+            </div>
+
+            <button class="btn-buy-now" id="detailBuyBtn" style="padding: 14px; width: 100%; border-radius: 8px; font-size: 16px;">এখনই কিনুন</button>
+          </div>
+        </div>
+
+        <!-- Reviews Section -->
+        <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+          <h3 style="font-size: 16px; color: #2c3e50; margin-bottom: 12px;">কাস্টমার রিভিউ ও মতামত</h3>
+          
+          <div style="background: #fdf2e9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffe0b2;">
+            <small style="font-weight: bold; color: #d35400;">📦 পণ্যটি ডেলিভারি পেয়ে থাকলে রিভিউ দিন:</small>
+            <div style="display: flex; gap: 10px; margin: 10px 0; flex-wrap: wrap;">
+              <input type="tel" id="revPhone" placeholder="ক্রয়কৃত মোবাইল নম্বর" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; flex: 1; min-width: 140px;" required>
+              <input type="text" id="revUserName" placeholder="আপনার নাম" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; flex: 1; min-width: 140px;" required>
+              <select id="revRating" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                <option value="5">★★★★★ (৫/৫)</option>
+                <option value="4">★★★★☆ (৪/৫)</option>
+                <option value="3">★★★☆☆ (৩/৫)</option>
+                <option value="2">★★☆☆☆ (২/৫)</option>
+                <option value="1">★☆☆☆☆ (১/৫)</option>
+              </select>
+            </div>
+            <textarea id="revComment" rows="2" placeholder="পণ্যটি সম্পর্কে আপনার অভিজ্ঞতা লিখুন..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;"></textarea>
+            <button id="revSubmitBtn" onclick="submitVerifiedReview()" style="background: var(--primary-orange); color: white; border: none; padding: 8px 20px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; margin-top: 8px;">ভেরিফাইড রিভিউ সাবমিট করুন</button>
+          </div>
+
+          <div id="detailReviewList" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. CART VIEW -->
     <section id="cartView" class="view-section">
       <div class="cart-summary">
         <h2>Your Shopping Cart</h2>
@@ -222,7 +285,7 @@
       </div>
     </section>
 
-    <!-- 3. MY ACCOUNT & ORDER HISTORY VIEW -->
+    <!-- 4. MY ACCOUNT & ORDER HISTORY VIEW -->
     <section id="accountView" class="view-section">
       <div class="cart-summary" style="max-width: 800px;">
         <h2>My Profile & Lifetime Orders</h2>
@@ -238,76 +301,6 @@
       </div>
     </section>
 
-  </div>
-
-  <!-- Enhanced Product Modal -->
-  <div id="productModal" class="modal-overlay">
-    <div class="modal-content">
-      <span class="close-modal" onclick="closeModal()">&times;</span>
-      
-      <!-- Top Grid Section: Gallery & Main Details -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; align-items: start;">
-        
-        <!-- Gallery Column -->
-        <div>
-          <div id="modalGallery" class="modal-gallery" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px;"></div>
-        </div>
-
-        <!-- Details Column -->
-        <div>
-          <h2 id="modalTitle" style="font-size: 20px; font-weight: 700; color: #2c3e50; line-height: 1.3;"></h2>
-          
-          <!-- Rating & Sold Count Badges -->
-          <div style="display: flex; align-items: center; gap: 12px; margin: 10px 0; font-size: 13px;">
-            <span id="modalRating" style="color: #ff9800; font-weight: bold;">★ 5.0 (0 রিভিউ)</span>
-            <span style="color: #ccc;">|</span>
-            <span id="modalSoldCount" style="background: #e8f5e9; color: #2e7d32; font-weight: 600; padding: 2px 8px; border-radius: 12px;">🛒 মোট বিক্রি: 0 টি</span>
-          </div>
-
-          <!-- Price Display -->
-          <div style="margin-bottom: 12px;">
-            <span id="modalPrice" style="color: var(--primary-orange); font-size: 22px; font-weight: 800;"></span>
-            <span id="modalOrigPrice" style="text-decoration: line-through; color: #aaa; font-size: 14px; margin-left: 8px;"></span>
-          </div>
-
-          <!-- Description -->
-          <div style="margin-bottom: 15px;">
-            <strong style="font-size: 13px; color: #444;">পণ্যের বিবরণ:</strong>
-            <div id="modalDesc" style="color: #555; line-height: 1.5; margin-top: 4px; font-size: 13px; max-height: 120px; overflow-y: auto;"></div>
-          </div>
-
-          <button class="btn-buy-now" id="modalBuyBtn" style="padding: 12px; width: 100%; border-radius: 8px; font-size: 15px;">এখনই কিনুন</button>
-        </div>
-      </div>
-
-      <!-- Bottom Section: Reviews & Rating Form -->
-      <div style="margin-top: 25px; border-top: 1px solid #eee; padding-top: 15px;">
-        <h3 style="font-size: 16px; color: #2c3e50; margin-bottom: 12px;">কাস্টমার রিভিউ ও মতামত</h3>
-        
-        <!-- Verified Purchase Check Review Form -->
-        <div style="background: #fdf2e9; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ffe0b2;">
-          <small style="font-weight: bold; color: #d35400;">📦 পণ্যটি ডেলিভারি পেয়ে থাকলে রিভিউ দিন:</small>
-          <div style="display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap;">
-            <input type="tel" id="revPhone" placeholder="ক্রয়কৃত মোবাইল নম্বর" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; flex: 1; min-width: 130px;" required>
-            <input type="text" id="revUserName" placeholder="আপনার নাম" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; flex: 1; min-width: 130px;" required>
-            <select id="revRating" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
-              <option value="5">★★★★★ (৫/৫)</option>
-              <option value="4">★★★★☆ (৪/৫)</option>
-              <option value="3">★★★☆☆ (৩/৫)</option>
-              <option value="2">★★☆☆☆ (২/৫)</option>
-              <option value="1">★☆☆☆☆ (১/৫)</option>
-            </select>
-          </div>
-          <textarea id="revComment" rows="2" placeholder="পণ্যটি সম্পর্কে আপনার অভিজ্ঞতা লিখুন..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;"></textarea>
-          <button id="revSubmitBtn" onclick="submitVerifiedReview()" style="background: var(--primary-orange); color: white; border: none; padding: 6px 15px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; margin-top: 6px;">ভেরিফাইড রিভিউ সাবমিট করুন</button>
-        </div>
-
-        <!-- Dynamic Reviews Container -->
-        <div id="modalReviewList" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
-        </div>
-      </div>
-
-    </div>
   </div>
 
   <!-- DYNAMIC FOOTER -->
@@ -420,7 +413,7 @@
     let cart = [];
     let deliveryConfig = { insideDhaka: 60, outsideDhaka: 120 };
     let activeCustomerPhone = "";
-    let currentModalProductId = null;
+    let currentDetailProductId = null;
 
     function showView(viewId) {
       document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
@@ -579,7 +572,7 @@
         const card = document.createElement('div');
         card.className = 'product-card';
         card.innerHTML = `
-          <img src="${displayImg}" onclick="openProductModal('${p.id}')">
+          <img src="${displayImg}" onclick="openProductDetail('${p.id}')">
           <div class="product-title" title="${p.name}">${p.name}</div>
           <div class="card-rating-badge" id="cardRating_${p.id}">★ 5.0 (0)</div>
           <div class="price-tag">
@@ -592,12 +585,11 @@
               <button class="btn-add-cart" onclick="addToCart('${p.id}')">Add to Cart</button>
               <button class="btn-buy-now" onclick="buyNow('${p.id}')">Buy Now</button>
             </div>
-            <button class="btn-details" onclick="openProductModal('${p.id}')">View Details</button>
+            <button class="btn-details" onclick="openProductDetail('${p.id}')">View Details</button>
           </div>
         `;
         grid.appendChild(card);
 
-        // Fetch & calculate average rating directly on card
         fs.onSnapshot(fs.collection(db, "products", p.id, "reviews"), (snap) => {
           let totalStars = 0, count = 0;
           snap.forEach(rDoc => {
@@ -663,31 +655,29 @@
       showView('cartView');
     }
 
-    async function openProductModal(pId) {
+    function openProductDetail(pId) {
       const p = globalProducts.find(item => item.id === pId);
       if(!p) return;
 
-      currentModalProductId = pId;
+      currentDetailProductId = pId;
 
-      // 1. Gallery
-      const modalGallery = document.getElementById('modalGallery');
-      modalGallery.innerHTML = '';
+      const detailGallery = document.getElementById('detailGallery');
+      detailGallery.innerHTML = '';
 
       if(p.images && p.images.length > 0) {
-        p.images.forEach(img => modalGallery.innerHTML += `<img src="${img}" style="height:180px; min-width:140px; border-radius:8px; object-fit:cover; border:1px solid #eee;">`);
+        p.images.forEach(img => detailGallery.innerHTML += `<img src="${img}" style="height:220px; min-width:160px; border-radius:8px; object-fit:cover; border:1px solid #eee;">`);
       } else if(p.image) {
-        modalGallery.innerHTML += `<img src="${p.image}" style="height:180px; min-width:140px; border-radius:8px; object-fit:cover; border:1px solid #eee;">`;
+        detailGallery.innerHTML += `<img src="${p.image}" style="height:220px; min-width:160px; border-radius:8px; object-fit:cover; border:1px solid #eee;">`;
       }
-      if(p.video) modalGallery.innerHTML += `<video src="${p.video}" controls style="height:180px; border-radius:8px;"></video>`;
+      if(p.video) detailGallery.innerHTML += `<video src="${p.video}" controls style="height:220px; border-radius:8px;"></video>`;
 
-      // 2. Price Details
       const discountPct = p.discount || 0;
       const finalPrice = Math.round(p.price - (p.price * (discountPct / 100)));
 
-      document.getElementById('modalTitle').innerText = p.name;
-      document.getElementById('modalPrice').innerText = '৳' + finalPrice;
+      document.getElementById('detailTitle').innerText = p.name;
+      document.getElementById('detailPrice').innerText = '৳' + finalPrice;
       
-      const origPriceElem = document.getElementById('modalOrigPrice');
+      const origPriceElem = document.getElementById('detailOrigPrice');
       if(discountPct > 0) {
         origPriceElem.innerText = '৳' + p.price;
         origPriceElem.style.display = 'inline';
@@ -695,9 +685,8 @@
         origPriceElem.style.display = 'none';
       }
 
-      document.getElementById('modalDesc').innerText = p.description || 'কোনো বিবরণ দেওয়া নেই।';
+      document.getElementById('detailDesc').innerText = p.description || 'কোনো বিবরণ দেওয়া নেই।';
 
-      // 3. Purchase History Stats
       const totalSold = globalOrders.reduce((acc, order) => {
         if (order.items) {
           const itemMatch = order.items.find(i => i.id === pId);
@@ -705,22 +694,19 @@
         }
         return acc;
       }, 0);
-      document.getElementById('modalSoldCount').innerText = `🛒 মোট বিক্রি: ${totalSold} টি`;
+      document.getElementById('detailSoldCount').innerText = `🛒 মোট বিক্রি: ${totalSold} টি`;
 
-      // 4. Load Reviews
-      loadModalReviews(pId);
+      loadDetailReviews(pId);
 
-      // Buy Button Action
-      document.getElementById('modalBuyBtn').onclick = () => {
-        closeModal();
+      document.getElementById('detailBuyBtn').onclick = () => {
         buyNow(p.id);
       };
 
-      document.getElementById('productModal').style.display = 'flex';
+      showView('productDetailView');
     }
 
-    function loadModalReviews(productId) {
-      const reviewContainer = document.getElementById('modalReviewList');
+    function loadDetailReviews(productId) {
+      const reviewContainer = document.getElementById('detailReviewList');
       reviewContainer.innerHTML = '';
 
       fs.onSnapshot(fs.collection(db, "products", productId, "reviews"), (snapshot) => {
@@ -734,29 +720,28 @@
           totalStars += parseInt(r.rating || 5);
 
           reviewContainer.innerHTML += `
-            <div style="background: #f9f9f9; padding: 8px 12px; border-radius: 6px; font-size: 12px; border-left: 3px solid var(--primary-orange);">
+            <div style="background: #f9f9f9; padding: 10px 14px; border-radius: 6px; font-size: 13px; border-left: 3px solid var(--primary-orange);">
               <div style="display: flex; justify-content: space-between;">
-                <strong>${r.userName || 'গোপন গ্রাহক'} <span style="font-size:10px; color:#2e7d32; background:#e8f5e9; padding:1px 4px; border-radius:3px; margin-left:4px;">✔ ভেরিফাইড ক্রেতা</span></strong>
+                <strong>${r.userName || 'গোপন গ্রাহক'} <span style="font-size:11px; color:#2e7d32; background:#e8f5e9; padding:1px 5px; border-radius:3px; margin-left:4px;">✔ ভেরিফাইড ক্রেতা</span></strong>
                 <span style="color: #ff9800;">${'★'.repeat(r.rating || 5)}</span>
               </div>
-              <p style="color: #555; margin-top: 3px;">${r.comment || ''}</p>
+              <p style="color: #555; margin-top: 4px;">${r.comment || ''}</p>
             </div>
           `;
         });
 
         if (count === 0) {
-          reviewContainer.innerHTML = '<p style="font-size:12px; color:#888;">এখনো কোনো রিভিউ দেওয়া হয়নি।</p>';
-          document.getElementById('modalRating').innerText = '★ ৫.০ (০ রিভিউ)';
+          reviewContainer.innerHTML = '<p style="font-size:13px; color:#888;">এখনো কোনো রিভিউ দেওয়া হয়নি।</p>';
+          document.getElementById('detailRating').innerText = '★ ৫.০ (০ রিভিউ)';
         } else {
           const avg = (totalStars / count).toFixed(1);
-          document.getElementById('modalRating').innerText = `★ ${avg} (${count} টি রিভিউ)`;
+          document.getElementById('detailRating').innerText = `★ ${avg} (${count} টি রিভিউ)`;
         }
       });
     }
 
-    // DELIVERED CUSTOMER SINGLE REVIEW ONLY SYSTEM
     async function submitVerifiedReview() {
-      if (!currentModalProductId) return;
+      if (!currentDetailProductId) return;
       const phone = document.getElementById('revPhone').value.trim();
       const name = document.getElementById('revUserName').value.trim();
       const rating = parseInt(document.getElementById('revRating').value);
@@ -770,10 +755,9 @@
       btn.innerText = "যাচাই করা হচ্ছে..."; btn.disabled = true;
 
       try {
-        // Step 1: Check if product status is 'Delivered' for this customer
         const isDelivered = globalOrders.some(order => {
           const matchPhone = order.customer && order.customer.phone === phone;
-          const matchItem = order.items && order.items.some(i => i.id === currentModalProductId);
+          const matchItem = order.items && order.items.some(i => i.id === currentDetailProductId);
           const matchStatus = order.status === 'Delivered';
           return matchPhone && matchItem && matchStatus;
         });
@@ -783,8 +767,7 @@
           return;
         }
 
-        // Step 2: Check if this user already submitted a review for this product
-        const reviewsRef = fs.collection(db, "products", currentModalProductId, "reviews");
+        const reviewsRef = fs.collection(db, "products", currentDetailProductId, "reviews");
         const q = fs.query(reviewsRef, fs.where("userPhone", "==", phone));
         const querySnapshot = await fs.getDocs(q);
 
@@ -793,7 +776,6 @@
           return;
         }
 
-        // Step 3: Add New Review
         await fs.addDoc(reviewsRef, {
           userPhone: phone,
           userName: name,
@@ -812,10 +794,6 @@
       } finally {
         btn.innerText = "ভেরিফাইড রিভিউ সাবমিট করুন"; btn.disabled = false;
       }
-    }
-
-    function closeModal() {
-      document.getElementById('productModal').style.display = 'none';
     }
 
     function updateCartBadge() {
