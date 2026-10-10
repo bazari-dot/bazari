@@ -9,7 +9,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
-      getFirestore, collection, addDoc, onSnapshot, doc, getDoc, setDoc, updateDb, query, where, getDocs 
+      getFirestore, collection, addDoc, onSnapshot, doc, getDoc, setDoc, query, where, getDocs 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -440,23 +440,23 @@
 
     function populateDistricts() {
       const distSelect = document.getElementById('custDistrict');
-      let options = '<option value="">Select District</option>';
+      distSelect.innerHTML = '<option value="">Select District</option>';
       Object.keys(bdData).sort().forEach(district => {
-        options += `<option value="${district}">${district}</option>`;
+        distSelect.innerHTML += `<option value="${district}">${district}</option>`;
       });
-      distSelect.innerHTML = options;
     }
 
     function onDistrictChange(selectedDistrict) {
       const upazilaSelect = document.getElementById('custUpazila');
-      let options = '<option value="">Select Thana/Upazila</option>';
+      upazilaSelect.innerHTML = '<option value="">Select Thana/Upazila</option>';
       
       if(selectedDistrict && bdData[selectedDistrict]) {
         bdData[selectedDistrict].slice().sort().forEach(upazila => {
-          options += `<option value="${upazila}">${upazila}</option>`;
+          upazilaSelect.innerHTML += `<option value="${upazila}">${upazila}</option>`;
         });
+      } else {
+        upazilaSelect.innerHTML = '<option value="">Select District First</option>';
       }
-      upazilaSelect.innerHTML = options;
 
       if (selectedDistrict !== "Dhaka") {
         document.getElementById('deliveryArea').value = "outside";
@@ -521,11 +521,10 @@
 
       fs.onSnapshot(fs.collection(db, "categories"), (snapshot) => {
         const catSelect = document.getElementById('categoryFilter');
-        let options = '<option value="All">All Categories</option>';
+        catSelect.innerHTML = '<option value="All">All Categories</option>';
         snapshot.forEach((doc) => {
-          options += `<option value="${doc.data().name}">${doc.data().name}</option>`;
+          catSelect.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`;
         });
-        catSelect.innerHTML = options;
       });
 
       fs.onSnapshot(fs.collection(db, "banners"), (snapshot) => {
@@ -547,11 +546,9 @@
       if(globalBanners.length === 0) { slider.style.display = 'none'; return; }
       slider.style.display = 'block';
 
-      let html = '';
       globalBanners.forEach((imgSrc, index) => {
-        html += `<div class="billboard-slide ${index === 0 ? 'active' : ''}"><img src="${imgSrc}"></div>`;
+        slider.innerHTML += `<div class="billboard-slide ${index === 0 ? 'active' : ''}"><img src="${imgSrc}"></div>`;
       });
-      slider.innerHTML = html;
 
       if(globalBanners.length > 1) {
         let current = 0;
@@ -567,38 +564,57 @@
 
     function renderProducts(products) {
       const grid = document.getElementById('productGrid');
-      
+      grid.innerHTML = '';
+
       if(!products || products.length === 0) {
         grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px;">No products found.</p>';
         return;
       }
 
-      let html = '';
       products.forEach(p => {
         const discountPct = p.discount || 0;
         const finalPrice = Math.round(p.price - (p.price * (discountPct / 100)));
         let displayImg = (p.images && p.images.length > 0) ? p.images[0] : (p.image || '');
 
-        html += `
-          <div class="product-card">
-            <img src="${displayImg}" onclick="openProductDetail('${p.id}')">
-            <div class="product-title" title="${p.name}">${p.name}</div>
-            <div class="card-rating-badge">★ 5.0 (0)</div>
-            <div class="price-tag">
-              ${discountPct > 0 ? `<span class="orig-price">৳${p.price}</span>` : ''}
-              <span class="disc-price">৳${finalPrice}</span>
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+          <img src="${displayImg}" onclick="openProductDetail('${p.id}')">
+          <div class="product-title" title="${p.name}">${p.name}</div>
+          <div class="card-rating-badge" id="cardRating_${p.id}">★ 5.0 (0)</div>
+          <div class="price-tag">
+            ${discountPct > 0 ? `<span class="orig-price">৳${p.price}</span>` : ''}
+            <span class="disc-price">৳${finalPrice}</span>
+          </div>
+
+          <div>
+            <div class="btn-group">
+              <button class="btn-add-cart" onclick="addToCart('${p.id}')">Add to Cart</button>
+              <button class="btn-buy-now" onclick="buyNow('${p.id}')">Buy Now</button>
             </div>
-            <div>
-              <div class="btn-group">
-                <button class="btn-add-cart" onclick="addToCart('${p.id}')">Add to Cart</button>
-                <button class="btn-buy-now" onclick="buyNow('${p.id}')">Buy Now</button>
-              </div>
-              <button class="btn-details" onclick="openProductDetail('${p.id}')">View Details</button>
-            </div>
+            <button class="btn-details" onclick="openProductDetail('${p.id}')">View Details</button>
           </div>
         `;
+        grid.appendChild(card);
+
+        // Fetch & calculate average rating directly on card
+        fs.onSnapshot(fs.collection(db, "products", p.id, "reviews"), (snap) => {
+          let totalStars = 0, count = 0;
+          snap.forEach(rDoc => {
+            count++;
+            totalStars += parseInt(rDoc.data().rating || 5);
+          });
+          const badge = document.getElementById(`cardRating_${p.id}`);
+          if (badge) {
+            if (count > 0) {
+              const avg = (totalStars / count).toFixed(1);
+              badge.innerText = `★ ${avg} (${count})`;
+            } else {
+              badge.innerText = `★ 5.0 (0)`;
+            }
+          }
+        });
       });
-      grid.innerHTML = html;
     }
 
     function filterProducts() {
@@ -659,15 +675,14 @@
       }
 
       const detailGallery = document.getElementById('detailGallery');
-      let galleryHtml = '';
+      detailGallery.innerHTML = '';
 
       if(p.images && p.images.length > 0) {
-        p.images.forEach(img => galleryHtml += `<img src="${img}" style="height:220px; min-width:160px; border-radius:8px; object-fit:cover; border:1px solid #eee;">`);
+        p.images.forEach(img => detailGallery.innerHTML += `<img src="${img}" style="height:220px; min-width:160px; border-radius:8px; object-fit:cover; border:1px solid #eee;">`);
       } else if(p.image) {
-        galleryHtml += `<img src="${p.image}" style="height:220px; min-width:160px; border-radius:8px; object-fit:cover; border:1px solid #eee;">`;
+        detailGallery.innerHTML += `<img src="${p.image}" style="height:220px; min-width:160px; border-radius:8px; object-fit:cover; border:1px solid #eee;">`;
       }
-      if(p.video) galleryHtml += `<video src="${p.video}" controls style="height:220px; border-radius:8px;"></video>`;
-      detailGallery.innerHTML = galleryHtml;
+      if(p.video) detailGallery.innerHTML += `<video src="${p.video}" controls style="height:220px; border-radius:8px;"></video>`;
 
       const discountPct = p.discount || 0;
       const finalPrice = Math.round(p.price - (p.price * (discountPct / 100)));
@@ -708,7 +723,7 @@
       reviewContainer.innerHTML = '';
 
       fs.onSnapshot(fs.collection(db, "products", productId, "reviews"), (snapshot) => {
-        let html = '';
+        reviewContainer.innerHTML = '';
         let totalStars = 0;
         let count = 0;
 
@@ -717,7 +732,7 @@
           count++;
           totalStars += parseInt(r.rating || 5);
 
-          html += `
+          reviewContainer.innerHTML += `
             <div style="background: #f9f9f9; padding: 10px 14px; border-radius: 6px; font-size: 13px; border-left: 3px solid var(--primary-orange);">
               <div style="display: flex; justify-content: space-between;">
                 <strong>${r.userName || 'গোপন গ্রাহক'} <span style="font-size:11px; color:#2e7d32; background:#e8f5e9; padding:1px 5px; border-radius:3px; margin-left:4px;">✔ ভেরিফাইড ক্রেতা</span></strong>
@@ -728,8 +743,13 @@
           `;
         });
 
-        reviewContainer.innerHTML = html || '<p style="font-size:13px; color:#888;">এখনো কোনো রিভিউ দেওয়া হয়নি।</p>';
-        document.getElementById('detailRating').innerText = count > 0 ? `★ ${(totalStars / count).toFixed(1)} (${count} টি রিভিউ)` : '★ ৫.০ (০ রিভিউ)';
+        if (count === 0) {
+          reviewContainer.innerHTML = '<p style="font-size:13px; color:#888;">এখনো কোনো রিভিউ দেওয়া হয়নি।</p>';
+          document.getElementById('detailRating').innerText = '★ ৫.০ (০ রিভিউ)';
+        } else {
+          const avg = (totalStars / count).toFixed(1);
+          document.getElementById('detailRating').innerText = `★ ${avg} (${count} টি রিভিউ)`;
+        }
       });
     }
 
@@ -796,16 +816,16 @@
 
     function renderCart() {
       const container = document.getElementById('cartItemsList');
+      container.innerHTML = '';
       let subTotal = 0;
 
       if(cart.length === 0) {
         container.innerHTML = '<p style="color:#777;">Your cart is currently empty.</p>';
       } else {
-        let html = '';
         cart.forEach((item, index) => {
           const itemTotal = item.price * item.qty;
           subTotal += itemTotal;
-          html += `
+          container.innerHTML += `
             <div class="cart-item">
               <div>
                 <strong>${item.name}</strong><br>
@@ -821,7 +841,6 @@
             </div>
           `;
         });
-        container.innerHTML = html;
       }
 
       document.getElementById('subTotal').innerText = subTotal;
@@ -877,7 +896,7 @@
 
     function renderPaymentMethodsUI() {
       const container = document.getElementById('paymentMethodsContainer');
-      let html = `
+      container.innerHTML = `
         <div class="pay-method-item">
           <input type="radio" id="payCOD" name="paymentMethod" value="COD" checked onclick="togglePaymentDetail('COD')">
           <label for="payCOD"><strong>Cash on Delivery (COD)</strong></label>
@@ -885,14 +904,13 @@
       `;
 
       globalPaymentMethods.forEach(m => {
-        html += `
+        container.innerHTML += `
           <div class="pay-method-item">
             <input type="radio" id="pay_${m.id}" name="paymentMethod" value="${m.name}" onclick="togglePaymentDetail('${m.id}')">
             <label for="pay_${m.id}"><strong>${m.name}</strong> (${m.number})</label>
           </div>
         `;
       });
-      container.innerHTML = html;
     }
 
     function togglePaymentDetail(methodId) {
