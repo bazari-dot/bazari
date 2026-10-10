@@ -251,11 +251,11 @@
               <textarea id="custDetailAddress" placeholder="Enter house no, road no, holding no..." rows="2" required></textarea>
             </div>
             <div class="full-width">
-              <label><strong>Delivery Zone:</strong></label>
-              <select id="deliveryArea" onchange="updateDeliveryChargeUI()">
-                <option value="inside">Inside Dhaka City (৳<span class="lbl-dhaka">60</span>)</option>
-                <option value="outside">Outside Dhaka City (৳<span class="lbl-outside">120</span>)</option>
-              </select>
+              <label><strong>Delivery Zone & Charge:</strong></label>
+              <input type="hidden" id="deliveryArea" value="outside">
+              <div id="deliveryZoneDisplay" style="padding: 10px; background: #fafafa; border: 1px solid #ccc; border-radius: 6px; font-weight: bold; color: var(--primary-orange);">
+                Outside Dhaka City (৳120)
+              </div>
             </div>
           </div>
 
@@ -458,20 +458,33 @@
         upazilaSelect.innerHTML = '<option value="">Select District First</option>';
       }
 
-      if (selectedDistrict !== "Dhaka") {
-        document.getElementById('deliveryArea').value = "outside";
-        updateDeliveryChargeUI();
-      }
+      updateDeliveryZoneAuto();
     }
 
     function onUpazilaChange(selectedUpazila) {
-      const selectedDistrict = document.getElementById('custDistrict').value;
-      const deliveryAreaSelect = document.getElementById('deliveryArea');
+      updateDeliveryZoneAuto();
+    }
 
+    function updateDeliveryZoneAuto() {
+      const selectedDistrict = document.getElementById('custDistrict').value;
+      const selectedUpazila = document.getElementById('custUpazila').value;
+      const deliveryInput = document.getElementById('deliveryArea');
+      const displayBox = document.getElementById('deliveryZoneDisplay');
+
+      let isInside = false;
       if (selectedDistrict === "Dhaka" && dhakaCityThanas.includes(selectedUpazila)) {
-        deliveryAreaSelect.value = "inside";
+        isInside = true;
+      }
+
+      const insideCharge = deliveryConfig.insideDhaka || 60;
+      const outsideCharge = deliveryConfig.outsideDhaka || 120;
+
+      if (isInside) {
+        deliveryInput.value = "inside";
+        displayBox.innerText = `Inside Dhaka City (৳${insideCharge})`;
       } else {
-        deliveryAreaSelect.value = "outside";
+        deliveryInput.value = "outside";
+        displayBox.innerText = `Outside Dhaka City (৳${outsideCharge})`;
       }
       updateDeliveryChargeUI();
     }
@@ -483,6 +496,7 @@
           deliveryConfig = delSnap.data();
           document.querySelectorAll('.lbl-dhaka').forEach(el => el.innerText = deliveryConfig.insideDhaka || 60);
           document.querySelectorAll('.lbl-outside').forEach(el => el.innerText = deliveryConfig.outsideDhaka || 120);
+          updateDeliveryZoneAuto();
         }
 
         const ftSnap = await fs.getDoc(fs.doc(db, "settings", "footer"));
@@ -597,7 +611,6 @@
         `;
         grid.appendChild(card);
 
-        // Fetch & calculate average rating directly on card
         fs.onSnapshot(fs.collection(db, "products", p.id, "reviews"), (snap) => {
           let totalStars = 0, count = 0;
           snap.forEach(rDoc => {
