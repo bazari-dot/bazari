@@ -77,6 +77,7 @@
 
     .btn-edit { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
     .btn-delete { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+    .btn-invoice { background: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 5px; display: inline-block; }
     .btn-logout { background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
     .media-thumb { width: 45px; height: 45px; object-fit: cover; border-radius: 4px; margin-right: 4px; }
     .banner-preview-img { width: 160px; height: 55px; object-fit: cover; border-radius: 6px; }
@@ -84,30 +85,16 @@
     .cat-chip { background: var(--orange-light); color: var(--primary-orange); padding: 8px 14px; border-radius: 20px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
     .cat-chip button { background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold; }
 
-    /* Product Search Box Style */
-    .search-box-container {
-      margin-top: 15px;
-      margin-bottom: 10px;
-    }
-    .search-input {
-      width: 100%;
-      max-width: 400px;
-      padding: 10px 14px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    .search-input:focus {
-      border-color: var(--primary-orange);
-    }
+    .search-box-container { margin-top: 15px; margin-bottom: 10px; }
+    .search-input { width: 100%; max-width: 400px; padding: 10px 14px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+    .search-input:focus { border-color: var(--primary-orange); }
 
-    /* Color Stock Variant Style */
-    .color-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; }
-    .color-row input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
-    .btn-add-color { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
-    .btn-remove-color { background: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+    .color-tag { background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 2px; }
+
+    /* Color Variant Creator Styling */
+    .color-variant-box { background: #fafafa; border: 1px dashed var(--primary-orange); padding: 15px; border-radius: 8px; margin-top: 5px; }
+    .color-item-chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--primary-orange); color: var(--primary-orange); padding: 4px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; margin-right: 5px; margin-bottom: 5px; }
+    .color-item-chip button { background: none; border: none; color: red; font-weight: bold; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -169,8 +156,8 @@
                 <input type="number" id="pDiscount" placeholder="Discount" value="0">
               </div>
               <div>
-                <span class="media-label">Total Stock Quantity (Auto / Overall)</span>
-                <input type="number" id="pStock" placeholder="Stock" required readonly style="background-color: #eaeded;">
+                <span class="media-label">Total / Overall Stock Quantity</span>
+                <input type="number" id="pStock" placeholder="Total Stock" required readonly style="background:#f0f0f0;">
               </div>
               <div>
                 <span class="media-label">Select Category</span>
@@ -184,11 +171,20 @@
                 <span class="media-label">Product Video (Optional)</span>
                 <input type="file" id="pVideo" accept="video/*">
               </div>
+
+              <!-- Color and Color-Wise Stock Field -->
               <div class="full-width-field">
-                <span class="media-label">Color Variants & Stock Management</span>
-                <div id="colorVariantContainer"></div>
-                <button type="button" class="btn-add-color" onclick="addColorVariantRow()">+ Add Color Variant</button>
+                <span class="media-label">Add Product Colors & Stock Quantity</span>
+                <div class="color-variant-box">
+                  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="inputColorName" placeholder="Color Name (e.g. Orange, Black)" style="flex:1; min-width:150px;">
+                    <input type="number" id="inputColorStock" placeholder="Stock for this Color" style="width:150px;">
+                    <button type="button" onclick="addColorVariant()" style="background:var(--primary-orange); color:white; border:none; padding:10px 15px; border-radius:6px; font-weight:bold; cursor:pointer;">+ Add Color</button>
+                  </div>
+                  <div id="colorVariantsList" style="margin-top:12px;"></div>
+                </div>
               </div>
+
               <div class="full-width-field">
                 <span class="media-label">Product Description</span>
                 <textarea id="pDescription" rows="4" placeholder="Write detailed description..."></textarea>
@@ -207,7 +203,6 @@
         <div class="admin-card">
           <h3>All Products List</h3>
           
-          <!-- Product Search Input -->
           <div class="search-box-container">
             <input type="text" id="productSearchInput" class="search-input" placeholder="🔍 Search product by name..." oninput="renderAdminProducts()">
           </div>
@@ -219,7 +214,7 @@
                 <th>Name</th>
                 <th>Category</th>
                 <th>Price</th>
-                <th>Stock</th>
+                <th>Colors & Stock</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -281,12 +276,12 @@
           <table>
             <thead>
               <tr>
-                <th>Order ID</th>
+                <th>Order ID & Items</th>
                 <th>Customer Info</th>
                 <th>Full Address</th>
                 <th>Payment</th>
                 <th>Amount</th>
-                <th>Status</th>
+                <th>Action / Status</th>
               </tr>
             </thead>
             <tbody id="adminOrderTable"></tbody>
@@ -405,6 +400,45 @@
     let globalCategories = [];
     let globalPayMethods = [];
     let globalBanners = [];
+    let tempColorVariants = []; // Holds temporary color stock array
+
+    function addColorVariant() {
+      const cNameInput = document.getElementById('inputColorName');
+      const cStockInput = document.getElementById('inputColorStock');
+      const cName = cNameInput.value.trim();
+      const cStock = parseInt(cStockInput.value) || 0;
+
+      if(!cName) return alert('Please enter color name!');
+      if(cStock <= 0) return alert('Please enter valid stock quantity!');
+
+      tempColorVariants.push({ name: cName, stock: cStock });
+      cNameInput.value = '';
+      cStockInput.value = '';
+      renderColorVariants();
+    }
+
+    function removeColorVariant(idx) {
+      tempColorVariants.splice(idx, 1);
+      renderColorVariants();
+    }
+
+    function renderColorVariants() {
+      const listDiv = document.getElementById('colorVariantsList');
+      listDiv.innerHTML = '';
+      let totalStock = 0;
+
+      tempColorVariants.forEach((v, idx) => {
+        totalStock += v.stock;
+        listDiv.innerHTML += `
+          <div class="color-item-chip">
+            <span>🎨 ${v.name}: ${v.stock} pcs</span>
+            <button type="button" onclick="removeColorVariant(${idx})">✕</button>
+          </div>
+        `;
+      });
+
+      document.getElementById('pStock').value = totalStock;
+    }
 
     function switchTab(e, tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -426,9 +460,6 @@
               initDashboardListeners();
               loadDeliverySettings();
               loadFooterSettings();
-              if(document.getElementById('colorVariantContainer').children.length === 0) {
-                addColorVariantRow();
-              }
             } else {
               document.getElementById('loginSection').style.display = 'block';
               document.getElementById('dashboardSection').style.display = 'none';
@@ -485,39 +516,6 @@
         snapshot.forEach((doc) => globalBanners.push({ id: doc.id, ...doc.data() }));
         renderBannersTable();
       });
-    }
-
-    function addColorVariantRow(colorName = '', colorStock = '') {
-      const container = document.getElementById('colorVariantContainer');
-      const row = document.createElement('div');
-      row.className = 'color-row';
-      row.innerHTML = `
-        <input type="text" class="variant-color-name" placeholder="Color Name (e.g., Black, Red)" value="${colorName}" required oninput="calculateTotalStock()">
-        <input type="number" class="variant-color-stock" placeholder="Stock Quantity" value="${colorStock}" required min="0" oninput="calculateTotalStock()">
-        <button type="button" class="btn-remove-color" onclick="removeColorVariantRow(this)">✕</button>
-      `;
-      container.appendChild(row);
-      calculateTotalStock();
-    }
-
-    function removeColorVariantRow(btn) {
-      const container = document.getElementById('colorVariantContainer');
-      if(container.children.length > 1) {
-        btn.parentElement.remove();
-        calculateTotalStock();
-      } else {
-        alert('At least one color variant is required.');
-      }
-    }
-
-    function calculateTotalStock() {
-      const stockInputs = document.querySelectorAll('.variant-color-stock');
-      let total = 0;
-      stockInputs.forEach(input => {
-        const val = parseInt(input.value) || 0;
-        total += val;
-      });
-      document.getElementById('pStock').value = total;
     }
 
     async function handleAddBanner(e) {
@@ -700,13 +698,26 @@
 
       filteredProducts.forEach(p => {
         let mediaHtml = (p.images && p.images.length > 0) ? `<img src="${p.images[0]}" class="media-thumb">` : '';
+        let colorsStockHtml = '';
+        
+        if(p.colorVariants && p.colorVariants.length > 0) {
+          colorsStockHtml = p.colorVariants.map(v => `<span class="color-tag">${v.name}: ${v.stock}</span>`).join(' ');
+        } else if(p.colors) {
+          colorsStockHtml = Array.isArray(p.colors) ? p.colors.join(', ') : p.colors;
+        } else {
+          colorsStockHtml = 'N/A';
+        }
+
         pTbody.innerHTML += `
           <tr>
             <td>${mediaHtml}</td>
             <td>${p.name}</td>
             <td>${p.category || 'N/A'}</td>
             <td>৳${p.price}</td>
-            <td>${p.stock}</td>
+            <td>
+              <strong>Total: ${p.stock || 0}</strong><br>
+              <div style="margin-top:2px;">${colorsStockHtml}</div>
+            </td>
             <td>
               <button class="btn-edit" onclick="editProduct('${p.id}')">Edit</button>
               <button class="btn-delete" onclick="deleteProduct('${p.id}')">Delete</button>
@@ -726,25 +737,162 @@
         const c = o.customer || {};
         const fullAddr = `${c.detailAddress || ''}, ${c.area || ''}, ${c.upazila || ''}, ${c.district || ''} - ${c.postCode || ''}`;
 
+        let itemsHtml = '';
+        if(o.items && o.items.length > 0) {
+          itemsHtml = o.items.map(item => {
+            let colStr = '';
+            if(item.color) {
+              colStr = `<span class="color-tag">Color: ${item.color}</span>`;
+            }
+            return `<div style="margin-bottom:4px;"><b>${item.name}</b> (x${item.qty}) ${colStr}</div>`;
+          }).join('');
+        } else {
+          itemsHtml = 'N/A';
+        }
+
         oTbody.innerHTML += `
           <tr>
-            <td><strong>${o.orderId || o.firestoreId}</strong></td>
+            <td>
+              <strong style="color:var(--primary-orange);">ID: ${o.orderId || o.firestoreId}</strong><br>
+              <div style="font-size:12px; margin-top:5px; color:#333;">${itemsHtml}</div>
+            </td>
             <td>${c.name || 'N/A'}<br><small>${c.phone || ''}</small></td>
             <td><small>${fullAddr}</small></td>
             <td>${payInfo}</td>
-            <td>৳${o.amount || 0}</td>
+            <td><b>৳${o.amount || 0}</b></td>
             <td>
-              <select onchange="changeOrderStatus('${o.firestoreId}', this.value)">
+              <select onchange="changeOrderStatus('${o.firestoreId}', this.value)" style="padding:4px; font-size:12px; border-radius:4px; border:1px solid #ccc;">
                 <option value="Placed" ${o.status==='Placed'?'selected':''}>Placed</option>
                 <option value="Packaging" ${o.status==='Packaging'?'selected':''}>Packaging</option>
                 <option value="Shipped" ${o.status==='Shipped'?'selected':''}>Shipped</option>
                 <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
                 <option value="Cancelled" ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
-              </select>
+              </select><br>
+              <button class="btn-invoice" onclick="printInvoice('${o.firestoreId}')">🖨️ Invoice</button>
             </td>
           </tr>
         `;
       });
+    }
+
+    function printInvoice(firestoreId) {
+      const order = globalOrders.find(o => o.firestoreId === firestoreId);
+      if(!order) return alert('Order details not found!');
+
+      const c = order.customer || {};
+      let itemsRows = '';
+      let subTotal = 0;
+
+      if(order.items && order.items.length > 0) {
+        order.items.forEach((item, i) => {
+          const total = (item.price || 0) * (item.qty || 1);
+          subTotal += total;
+          itemsRows += `
+            <tr>
+              <td style="padding:6px; border-bottom:1px solid #eee;">${i+1}</td>
+              <td style="padding:6px; border-bottom:1px solid #eee;">
+                ${item.name} 
+                ${item.color ? `<br><small style="color:#d35400;">(Color: ${item.color})</small>` : ''}
+              </td>
+              <td style="padding:6px; border-bottom:1px solid #eee; text-align:center;">${item.qty}</td>
+              <td style="padding:6px; border-bottom:1px solid #eee; text-align:right;">৳${item.price}</td>
+              <td style="padding:6px; border-bottom:1px solid #eee; text-align:right;">৳${total}</td>
+            </tr>
+          `;
+        });
+      }
+
+      const invoiceWindow = window.open('', '_blank', 'width=800,height=900');
+      invoiceWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Invoice - ${order.orderId || firestoreId}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 30px; color: #333; font-size: 14px; }
+            .inv-header { display: flex; justify-content: space-between; border-bottom: 2px solid #ff6f00; padding-bottom: 15px; margin-bottom: 20px; }
+            .brand-title { font-size: 26px; font-weight: bold; color: #ff6f00; }
+            .inv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+            .box { background: #fafafa; padding: 12px; border-radius: 6px; border: 1px solid #eee; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th { background: #ff6f00; color: white; padding: 8px; text-align: left; }
+            .total-table { width: 250px; margin-left: auto; margin-top: 15px; }
+            .total-table td { padding: 4px; text-align: right; }
+            .footer-note { text-align: center; margin-top: 40px; font-size: 12px; color: #777; border-top: 1px solid #eee; padding-top: 15px; }
+            @media print { .no-print { display: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="no-print" style="margin-bottom:20px; text-align:right;">
+            <button onclick="window.print()" style="padding:10px 20px; background:#ff6f00; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;"> Print / Save PDF</button>
+          </div>
+
+          <div class="inv-header">
+            <div>
+              <div class="brand-title">Bazari</div>
+              <small>Trusted Online Shopping Center</small>
+            </div>
+            <div style="text-align:right;">
+              <h2>INVOICE</h2>
+              <p><b>Order ID:</b> ${order.orderId || firestoreId}</p>
+              <p><b>Date:</b> ${order.createdAt || 'N/A'}</p>
+            </div>
+          </div>
+
+          <div class="inv-grid">
+            <div class="box">
+              <h4 style="color:#ff6f00; margin-bottom:6px;">Customer Details:</h4>
+              <p><b>Name:</b> ${c.name || 'N/A'}</p>
+              <p><b>Phone:</b> ${c.phone || 'N/A'}</p>
+              <p><b>Address:</b> ${c.detailAddress || ''}, ${c.area || ''}, ${c.upazila || ''}, ${c.district || ''} ${c.postCode ? '- ' + c.postCode : ''}</p>
+            </div>
+            <div class="box">
+              <h4 style="color:#ff6f00; margin-bottom:6px;">Payment Summary:</h4>
+              <p><b>Payment Method:</b> ${order.payment ? order.payment.method : 'COD'}</p>
+              ${order.payment && order.payment.senderNumber ? `<p><b>Sender Number:</b> ${order.payment.senderNumber}</p>` : ''}
+              ${order.payment && order.payment.trxId ? `<p><b>TrxID:</b> ${order.payment.trxId}</p>` : ''}
+              <p><b>Status:</b> ${order.status || 'Placed'}</p>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40px;">#</th>
+                <th>Item Description</th>
+                <th style="text-align:center; width:60px;">Qty</th>
+                <td style="text-align:right; font-weight:bold; width:100px; color:white;">Price</td>
+                <td style="text-align:right; font-weight:bold; width:100px; color:white;">Total</td>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRows}
+            </tbody>
+          </table>
+
+          <table class="total-table">
+            <tr>
+              <td>Subtotal:</td>
+              <td>৳${subTotal}</td>
+            </tr>
+            <tr>
+              <td>Delivery Charge:</td>
+              <td>৳${order.deliveryCharge || 0}</td>
+            </tr>
+            <tr style="font-weight:bold; font-size:16px; color:#ff6f00;">
+              <td>Grand Total:</td>
+              <td>৳${order.amount || 0}</td>
+            </tr>
+          </table>
+
+          <div class="footer-note">
+            <p>Thank you for shopping with Bazari!</p>
+            <p>This is a computer generated invoice.</p>
+          </div>
+        </body>
+        </html>
+      `);
+      invoiceWindow.document.close();
     }
 
     async function changeOrderStatus(firestoreId, newStatus) {
@@ -793,20 +941,11 @@
       const name = document.getElementById('pName').value;
       const price = parseFloat(document.getElementById('pPrice').value);
       const discount = parseFloat(document.getElementById('pDiscount').value) || 0;
-      const stock = parseInt(document.getElementById('pStock').value);
+      const stock = parseInt(document.getElementById('pStock').value) || 0;
       const category = document.getElementById('pCategory').value;
       const description = document.getElementById('pDescription').value;
       
-      // Collect color variants and their stock
-      const colorRows = document.querySelectorAll('.color-row');
-      let colors = [];
-      colorRows.forEach(row => {
-        const colorName = row.querySelector('.variant-color-name').value.trim();
-        const colorStock = parseInt(row.querySelector('.variant-color-stock').value) || 0;
-        if(colorName) {
-          colors.push({ color: colorName, stock: colorStock });
-        }
-      });
+      const colorsList = tempColorVariants.map(v => v.name);
 
       const imageFiles = document.getElementById('pImages').files;
 
@@ -818,14 +957,14 @@
         }
 
         if(editId) {
-          const updateData = { name, price, discount, stock, category, description, colors };
+          const updateData = { name, price, discount, stock, colors: colorsList, colorVariants: tempColorVariants, category, description };
           if(resizedImages.length > 0) { updateData.images = resizedImages; updateData.image = resizedImages[0]; }
           await fs.updateDoc(fs.doc(db, "products", editId), updateData);
           alert('Product updated!');
         } else {
           if(resizedImages.length === 0) throw new Error('Select at least one image.');
           await fs.addDoc(fs.collection(db, "products"), {
-            name, price, discount, stock, category, description, colors,
+            name, price, discount, stock, colors: colorsList, colorVariants: tempColorVariants, category, description,
             images: resizedImages, image: resizedImages[0], createdAt: new Date()
           });
           alert('Product saved!');
@@ -844,19 +983,20 @@
       document.getElementById('pName').value = p.name;
       document.getElementById('pPrice').value = p.price;
       document.getElementById('pDiscount').value = p.discount || 0;
-      document.getElementById('pStock').value = p.stock;
+      document.getElementById('pStock').value = p.stock || 0;
+      
+      if(p.colorVariants && Array.isArray(p.colorVariants)) {
+        tempColorVariants = [...p.colorVariants];
+      } else if(p.colors) {
+        const arr = Array.isArray(p.colors) ? p.colors : p.colors.split(',');
+        tempColorVariants = arr.map(c => ({ name: c.trim(), stock: 1 }));
+      } else {
+        tempColorVariants = [];
+      }
+      renderColorVariants();
+
       document.getElementById('pCategory').value = p.category;
       document.getElementById('pDescription').value = p.description || '';
-
-      // Load color variants
-      const container = document.getElementById('colorVariantContainer');
-      container.innerHTML = '';
-      if(p.colors && p.colors.length > 0) {
-        p.colors.forEach(c => addColorVariantRow(c.color, c.stock));
-      } else {
-        addColorVariantRow('Default', p.stock);
-      }
-
       document.getElementById('formTitle').innerText = "Edit Product: " + p.name;
       document.getElementById('saveProdBtn').innerText = "Update Product";
       document.getElementById('cancelEditBtn').style.display = "inline-block";
@@ -866,8 +1006,8 @@
     function resetProductForm() {
       document.getElementById('editProductId').value = '';
       document.getElementById('addProductForm').reset();
-      document.getElementById('colorVariantContainer').innerHTML = '';
-      addColorVariantRow();
+      tempColorVariants = [];
+      renderColorVariants();
       document.getElementById('formTitle').innerText = "Add New Product";
       document.getElementById('saveProdBtn').innerText = "Save Product";
       document.getElementById('cancelEditBtn').style.display = "none";
