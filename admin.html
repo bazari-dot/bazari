@@ -83,6 +83,25 @@
 
     .cat-chip { background: var(--orange-light); color: var(--primary-orange); padding: 8px 14px; border-radius: 20px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
     .cat-chip button { background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold; }
+
+    /* Product Search Box Style */
+    .search-box-container {
+      margin-top: 15px;
+      margin-bottom: 10px;
+    }
+    .search-input {
+      width: 100%;
+      max-width: 400px;
+      padding: 10px 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--primary-orange);
+    }
   </style>
 </head>
 <body>
@@ -176,6 +195,12 @@
       <div id="tabProducts" class="tab-content">
         <div class="admin-card">
           <h3>All Products List</h3>
+          
+          <!-- Product Search Input -->
+          <div class="search-box-container">
+            <input type="text" id="productSearchInput" class="search-input" placeholder="🔍 Search product by name..." oninput="renderAdminProducts()">
+          </div>
+
           <table>
             <thead>
               <tr>
@@ -589,10 +614,20 @@
 
     async function handleAddCategory(e) {
       e.preventDefault();
-      const name = document.getElementById('catNameInput').value.trim();
+      const nameInput = document.getElementById('catNameInput');
+      const name = nameInput.value.trim();
+      
       if(name) {
+        // Check if category already exists (case-insensitive check)
+        const exists = globalCategories.some(cat => cat.name.toLowerCase() === name.toLowerCase());
+        if(exists) {
+          alert('This category is already added!');
+          return;
+        }
+
         await fs.addDoc(fs.collection(db, "categories"), { name });
-        document.getElementById('catNameInput').value = '';
+        nameInput.value = '';
+        alert('Category added successfully!');
       }
     }
 
@@ -603,7 +638,21 @@
     function renderAdminProducts() {
       const pTbody = document.getElementById('adminProductTable');
       pTbody.innerHTML = '';
-      globalProducts.forEach(p => {
+
+      const searchInput = document.getElementById('productSearchInput');
+      const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+      const filteredProducts = globalProducts.filter(p => {
+        const name = (p.name || '').toLowerCase();
+        return name.includes(searchTerm);
+      });
+
+      if (filteredProducts.length === 0) {
+        pTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">No products found</td></tr>';
+        return;
+      }
+
+      filteredProducts.forEach(p => {
         let mediaHtml = (p.images && p.images.length > 0) ? `<img src="${p.images[0]}" class="media-thumb">` : '';
         pTbody.innerHTML += `
           <tr>
