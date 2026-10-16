@@ -102,6 +102,12 @@
     .search-input:focus {
       border-color: var(--primary-orange);
     }
+
+    /* Color Stock Variant Style */
+    .color-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; }
+    .color-row input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
+    .btn-add-color { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .btn-remove-color { background: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -163,8 +169,8 @@
                 <input type="number" id="pDiscount" placeholder="Discount" value="0">
               </div>
               <div>
-                <span class="media-label">Stock Quantity</span>
-                <input type="number" id="pStock" placeholder="Stock" required>
+                <span class="media-label">Total Stock Quantity (Auto / Overall)</span>
+                <input type="number" id="pStock" placeholder="Stock" required readonly style="background-color: #eaeded;">
               </div>
               <div>
                 <span class="media-label">Select Category</span>
@@ -177,6 +183,11 @@
               <div>
                 <span class="media-label">Product Video (Optional)</span>
                 <input type="file" id="pVideo" accept="video/*">
+              </div>
+              <div class="full-width-field">
+                <span class="media-label">Color Variants & Stock Management</span>
+                <div id="colorVariantContainer"></div>
+                <button type="button" class="btn-add-color" onclick="addColorVariantRow()">+ Add Color Variant</button>
               </div>
               <div class="full-width-field">
                 <span class="media-label">Product Description</span>
@@ -415,6 +426,9 @@
               initDashboardListeners();
               loadDeliverySettings();
               loadFooterSettings();
+              if(document.getElementById('colorVariantContainer').children.length === 0) {
+                addColorVariantRow();
+              }
             } else {
               document.getElementById('loginSection').style.display = 'block';
               document.getElementById('dashboardSection').style.display = 'none';
@@ -471,6 +485,39 @@
         snapshot.forEach((doc) => globalBanners.push({ id: doc.id, ...doc.data() }));
         renderBannersTable();
       });
+    }
+
+    function addColorVariantRow(colorName = '', colorStock = '') {
+      const container = document.getElementById('colorVariantContainer');
+      const row = document.createElement('div');
+      row.className = 'color-row';
+      row.innerHTML = `
+        <input type="text" class="variant-color-name" placeholder="Color Name (e.g., Black, Red)" value="${colorName}" required oninput="calculateTotalStock()">
+        <input type="number" class="variant-color-stock" placeholder="Stock Quantity" value="${colorStock}" required min="0" oninput="calculateTotalStock()">
+        <button type="button" class="btn-remove-color" onclick="removeColorVariantRow(this)">✕</button>
+      `;
+      container.appendChild(row);
+      calculateTotalStock();
+    }
+
+    function removeColorVariantRow(btn) {
+      const container = document.getElementById('colorVariantContainer');
+      if(container.children.length > 1) {
+        btn.parentElement.remove();
+        calculateTotalStock();
+      } else {
+        alert('At least one color variant is required.');
+      }
+    }
+
+    function calculateTotalStock() {
+      const stockInputs = document.querySelectorAll('.variant-color-stock');
+      let total = 0;
+      stockInputs.forEach(input => {
+        const val = parseInt(input.value) || 0;
+        total += val;
+      });
+      document.getElementById('pStock').value = total;
     }
 
     async function handleAddBanner(e) {
@@ -618,7 +665,6 @@
       const name = nameInput.value.trim();
       
       if(name) {
-        // Check if category already exists (case-insensitive check)
         const exists = globalCategories.some(cat => cat.name.toLowerCase() === name.toLowerCase());
         if(exists) {
           alert('This category is already added!');
@@ -751,6 +797,17 @@
       const category = document.getElementById('pCategory').value;
       const description = document.getElementById('pDescription').value;
       
+      // Collect color variants and their stock
+      const colorRows = document.querySelectorAll('.color-row');
+      let colors = [];
+      colorRows.forEach(row => {
+        const colorName = row.querySelector('.variant-color-name').value.trim();
+        const colorStock = parseInt(row.querySelector('.variant-color-stock').value) || 0;
+        if(colorName) {
+          colors.push({ color: colorName, stock: colorStock });
+        }
+      });
+
       const imageFiles = document.getElementById('pImages').files;
 
       try {
@@ -761,14 +818,14 @@
         }
 
         if(editId) {
-          const updateData = { name, price, discount, stock, category, description };
+          const updateData = { name, price, discount, stock, category, description, colors };
           if(resizedImages.length > 0) { updateData.images = resizedImages; updateData.image = resizedImages[0]; }
           await fs.updateDoc(fs.doc(db, "products", editId), updateData);
           alert('Product updated!');
         } else {
           if(resizedImages.length === 0) throw new Error('Select at least one image.');
           await fs.addDoc(fs.collection(db, "products"), {
-            name, price, discount, stock, category, description,
+            name, price, discount, stock, category, description, colors,
             images: resizedImages, image: resizedImages[0], createdAt: new Date()
           });
           alert('Product saved!');
@@ -790,6 +847,16 @@
       document.getElementById('pStock').value = p.stock;
       document.getElementById('pCategory').value = p.category;
       document.getElementById('pDescription').value = p.description || '';
+
+      // Load color variants
+      const container = document.getElementById('colorVariantContainer');
+      container.innerHTML = '';
+      if(p.colors && p.colors.length > 0) {
+        p.colors.forEach(c => addColorVariantRow(c.color, c.stock));
+      } else {
+        addColorVariantRow('Default', p.stock);
+      }
+
       document.getElementById('formTitle').innerText = "Edit Product: " + p.name;
       document.getElementById('saveProdBtn').innerText = "Update Product";
       document.getElementById('cancelEditBtn').style.display = "inline-block";
@@ -799,6 +866,8 @@
     function resetProductForm() {
       document.getElementById('editProductId').value = '';
       document.getElementById('addProductForm').reset();
+      document.getElementById('colorVariantContainer').innerHTML = '';
+      addColorVariantRow();
       document.getElementById('formTitle').innerText = "Add New Product";
       document.getElementById('saveProdBtn').innerText = "Save Product";
       document.getElementById('cancelEditBtn').style.display = "none";
