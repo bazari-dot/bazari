@@ -27,6 +27,8 @@
 
     window.db = db;
     window.fs = { collection, addDoc, onSnapshot, doc, getDoc, setDoc, query, where, getDocs };
+
+    window.dispatchEvent(new Event('firebase-loaded'));
   </script>
 
   <style>
@@ -107,6 +109,13 @@
     .status-Cancelled { background: #f8d7da; color: #721c24; }
 
     .profile-card { background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0; margin-bottom: 20px; text-align: left; }
+    
+    .color-option-btn { border: 2px solid #ccc; padding: 6px 12px; border-radius: 6px; cursor: pointer; background: #fff; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+    .color-option-btn.selected { border-color: var(--primary-orange); background: var(--orange-light); color: var(--primary-orange); }
+
+    /* Modal Styling for Color Picker */
+    .color-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: none; justify-content: center; align-items: center; }
+    .color-modal-box { background: #fff; width: 90%; max-width: 400px; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
   </style>
 </head>
 <body>
@@ -164,12 +173,21 @@
               <span id="detailOrigPrice" style="text-decoration: line-through; color: #aaa; font-size: 14px; margin-left: 8px;"></span>
             </div>
 
+            <!-- Color Selection Section -->
+            <div id="detailColorSection" style="margin-bottom: 15px; display: none;">
+              <strong style="font-size: 13px; color: #444; display: block; margin-bottom: 6px;">কালার নির্বাচন করুন:</strong>
+              <div id="detailColorOptions" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+            </div>
+
             <div style="margin-bottom: 15px;">
               <strong style="font-size: 13px; color: #444;">পণ্যের বিবরণ:</strong>
               <div id="detailDesc" style="color: #555; line-height: 1.6; margin-top: 6px; font-size: 14px;"></div>
             </div>
 
-            <button class="btn-buy-now" id="detailBuyBtn" style="padding: 14px; width: 100%; border-radius: 8px; font-size: 16px;">এখনই কিনুন</button>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn-add-cart" id="detailAddToCartBtn" style="padding: 12px; flex: 1; border-radius: 8px; font-size: 15px;">কার্টে যোগ করুন</button>
+              <button class="btn-buy-now" id="detailBuyBtn" style="padding: 12px; flex: 1; border-radius: 8px; font-size: 15px;">এখনই কিনুন</button>
+            </div>
           </div>
         </div>
 
@@ -298,6 +316,19 @@
 
   </div>
 
+  <!-- COLOR SELECTION MODAL POPUP -->
+  <div id="colorSelectModal" class="color-modal-overlay">
+    <div class="color-modal-box">
+      <h3 id="modalProductName" style="font-size: 16px; margin-bottom: 12px; color: #2c3e50;"></h3>
+      <p style="font-size: 13px; color: #666; margin-bottom: 10px;">অনুগ্রহ করে আপনার পছন্দের কালার নির্বাচন করুন:</p>
+      <div id="modalColorList" style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px;"></div>
+      <div style="display: flex; gap: 10px;">
+        <button onclick="closeColorModal()" style="flex: 1; padding: 10px; background: #eee; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">বাতিল করুন</button>
+        <button id="modalConfirmBtn" style="flex: 1; padding: 10px; background: var(--primary-orange); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">কনফার্ম করুন</button>
+      </div>
+    </div>
+  </div>
+
   <!-- DYNAMIC FOOTER -->
   <footer>
     <div class="footer-grid">
@@ -409,10 +440,24 @@
     let deliveryConfig = { insideDhaka: 60, outsideDhaka: 120 };
     let activeCustomerPhone = "";
     let currentDetailProductId = null;
+    let selectedProductColor = "";
+    let modalSelectedColor = "";
+
+    function getProductColors(p) {
+      if (!p || !p.colors) return [];
+      if (Array.isArray(p.colors)) {
+        return p.colors.map(c => typeof c === 'object' && c !== null ? (c.name || c.color || Object.values(c)[0]) : c).filter(Boolean);
+      }
+      if (typeof p.colors === 'string') {
+        return p.colors.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      return [];
+    }
 
     function showView(viewId) {
       document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
-      document.getElementById(viewId).classList.add('active');
+      const target = document.getElementById(viewId);
+      if(target) target.classList.add('active');
       window.scrollTo(0, 0);
       if(viewId === 'cartView') renderCart();
       if(viewId === 'accountView' && activeCustomerPhone) {
@@ -429,17 +474,21 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       populateDistricts();
-      const checkFirebase = setInterval(() => {
-        if (window.db && window.fs) {
-          clearInterval(checkFirebase);
+      
+      if (window.db && window.fs) {
+        initFirebaseListeners();
+        fetchSettings();
+      } else {
+        window.addEventListener('firebase-loaded', () => {
           initFirebaseListeners();
           fetchSettings();
-        }
-      }, 50);
+        });
+      }
     });
 
     function populateDistricts() {
       const distSelect = document.getElementById('custDistrict');
+      if(!distSelect) return;
       distSelect.innerHTML = '<option value="">Select District</option>';
       Object.keys(bdData).sort().forEach(district => {
         distSelect.innerHTML += `<option value="${district}">${district}</option>`;
@@ -491,7 +540,7 @@
 
     async function fetchSettings() {
       try {
-        const delSnap = await fs.getDoc(fs.doc(db, "settings", "delivery"));
+        const delSnap = await window.fs.getDoc(window.fs.doc(window.db, "settings", "delivery"));
         if(delSnap.exists()) {
           deliveryConfig = delSnap.data();
           document.querySelectorAll('.lbl-dhaka').forEach(el => el.innerText = deliveryConfig.insideDhaka || 60);
@@ -499,7 +548,7 @@
           updateDeliveryZoneAuto();
         }
 
-        const ftSnap = await fs.getDoc(fs.doc(db, "settings", "footer"));
+        const ftSnap = await window.fs.getDoc(window.fs.doc(window.db, "settings", "footer"));
         if(ftSnap.exists()) {
           const d = ftSnap.data();
           if(d.compName) {
@@ -515,7 +564,7 @@
     }
 
     function initFirebaseListeners() {
-      fs.onSnapshot(fs.collection(db, "products"), (snapshot) => {
+      window.fs.onSnapshot(window.fs.collection(window.db, "products"), (snapshot) => {
         globalProducts = [];
         snapshot.forEach((doc) => globalProducts.push({ id: doc.id, ...doc.data() }));
         renderProducts(globalProducts);
@@ -527,27 +576,28 @@
         }
       });
 
-      fs.onSnapshot(fs.collection(db, "orders"), (snapshot) => {
+      window.fs.onSnapshot(window.fs.collection(window.db, "orders"), (snapshot) => {
         globalOrders = [];
         snapshot.forEach((doc) => globalOrders.push({ firestoreId: doc.id, ...doc.data() }));
         if(activeCustomerPhone) loadUserAccount();
       });
 
-      fs.onSnapshot(fs.collection(db, "categories"), (snapshot) => {
+      window.fs.onSnapshot(window.fs.collection(window.db, "categories"), (snapshot) => {
         const catSelect = document.getElementById('categoryFilter');
+        if(!catSelect) return;
         catSelect.innerHTML = '<option value="All">All Categories</option>';
         snapshot.forEach((doc) => {
           catSelect.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`;
         });
       });
 
-      fs.onSnapshot(fs.collection(db, "banners"), (snapshot) => {
+      window.fs.onSnapshot(window.fs.collection(window.db, "banners"), (snapshot) => {
         globalBanners = [];
         snapshot.forEach((doc) => globalBanners.push(doc.data().image));
         renderBillboardSlider();
       });
 
-      fs.onSnapshot(fs.collection(db, "paymentMethods"), (snapshot) => {
+      window.fs.onSnapshot(window.fs.collection(window.db, "paymentMethods"), (snapshot) => {
         globalPaymentMethods = [];
         snapshot.forEach((doc) => globalPaymentMethods.push({ id: doc.id, ...doc.data() }));
         renderPaymentMethodsUI();
@@ -556,6 +606,7 @@
 
     function renderBillboardSlider() {
       const slider = document.getElementById('billboardSlider');
+      if(!slider) return;
       slider.innerHTML = '';
       if(globalBanners.length === 0) { slider.style.display = 'none'; return; }
       slider.style.display = 'block';
@@ -578,6 +629,7 @@
 
     function renderProducts(products) {
       const grid = document.getElementById('productGrid');
+      if(!grid) return;
       grid.innerHTML = '';
 
       if(!products || products.length === 0) {
@@ -611,7 +663,7 @@
         `;
         grid.appendChild(card);
 
-        fs.onSnapshot(fs.collection(db, "products", p.id, "reviews"), (snap) => {
+        window.fs.onSnapshot(window.fs.collection(window.db, "products", p.id, "reviews"), (snap) => {
           let totalStars = 0, count = 0;
           snap.forEach(rDoc => {
             count++;
@@ -631,8 +683,12 @@
     }
 
     function filterProducts() {
-      const search = document.getElementById('searchInput').value.toLowerCase();
-      const category = document.getElementById('categoryFilter').value;
+      const searchInput = document.getElementById('searchInput');
+      const categoryFilter = document.getElementById('categoryFilter');
+      if(!searchInput || !categoryFilter) return;
+
+      const search = searchInput.value.toLowerCase();
+      const category = categoryFilter.value;
 
       const filtered = globalProducts.filter(p => {
         const matchesSearch = p.name ? p.name.toLowerCase().includes(search) : false;
@@ -642,38 +698,84 @@
       renderProducts(filtered);
     }
 
-    function addToCart(productId) {
-      const product = globalProducts.find(p => p.id === productId);
-      if (!product) return;
+    /* Modal for Quick Color Selection */
+    function openColorModal(product, actionType) {
+      const productColors = getProductColors(product);
+      if(productColors.length === 0) {
+        executeAddToCart(product, "", actionType);
+        return;
+      }
 
-      const existing = cart.find(item => item.id === productId);
+      document.getElementById('modalProductName').innerText = product.name;
+      const listContainer = document.getElementById('modalColorList');
+      listContainer.innerHTML = '';
+      modalSelectedColor = productColors[0];
+
+      productColors.forEach((col, idx) => {
+        const isFirst = (idx === 0);
+        listContainer.innerHTML += `<button type="button" class="color-option-btn ${isFirst ? 'selected' : ''}" onclick="selectModalColor(this, '${col}')">${col}</button>`;
+      });
+
+      document.getElementById('modalConfirmBtn').onclick = () => {
+        executeAddToCart(product, modalSelectedColor, actionType);
+        closeColorModal();
+      };
+
+      document.getElementById('colorSelectModal').style.display = 'flex';
+    }
+
+    function selectModalColor(btnElem, col) {
+      document.querySelectorAll('#modalColorList .color-option-btn').forEach(b => b.classList.remove('selected'));
+      btnElem.classList.add('selected');
+      modalSelectedColor = col;
+    }
+
+    function closeColorModal() {
+      document.getElementById('colorSelectModal').style.display = 'none';
+    }
+
+    function executeAddToCart(product, chosenColor, actionType) {
+      const existing = cart.find(item => item.id === product.id && item.color === chosenColor);
       const discountPct = product.discount || 0;
       const finalPrice = Math.round(product.price - (product.price * (discountPct / 100)));
 
       if(existing) {
         existing.qty += 1;
       } else {
-        cart.push({ ...product, price: finalPrice, qty: 1 });
+        cart.push({ ...product, price: finalPrice, qty: 1, color: chosenColor });
       }
 
       updateCartBadge();
-      alert('Product added to cart!');
+
+      if(actionType === 'buyNow') {
+        showView('cartView');
+      } else {
+        alert('Product added to cart!');
+      }
+    }
+
+    function addToCart(productId) {
+      const product = globalProducts.find(p => p.id === productId);
+      if (!product) return;
+
+      const productColors = getProductColors(product);
+      if (productColors.length > 0 && !selectedProductColor) {
+        openColorModal(product, 'cart');
+      } else {
+        executeAddToCart(product, selectedProductColor || (productColors[0] || ""), 'cart');
+      }
     }
 
     function buyNow(productId) {
       const product = globalProducts.find(p => p.id === productId);
       if (!product) return;
 
-      const existing = cart.find(item => item.id === productId);
-      const discountPct = product.discount || 0;
-      const finalPrice = Math.round(product.price - (product.price * (discountPct / 100)));
-
-      if(!existing) {
-        cart.push({ ...product, price: finalPrice, qty: 1 });
+      const productColors = getProductColors(product);
+      if (productColors.length > 0 && !selectedProductColor) {
+        openColorModal(product, 'buyNow');
+      } else {
+        executeAddToCart(product, selectedProductColor || (productColors[0] || ""), 'buyNow');
       }
-
-      updateCartBadge();
-      showView('cartView');
     }
 
     function openProductDetail(pId, updateHistory = true) {
@@ -681,6 +783,7 @@
       if(!p) return;
 
       currentDetailProductId = pId;
+      selectedProductColor = "";
 
       if (updateHistory) {
         const newUrl = `${window.location.pathname}?id=${pId}`;
@@ -688,6 +791,7 @@
       }
 
       const detailGallery = document.getElementById('detailGallery');
+      if(!detailGallery) return;
       detailGallery.innerHTML = '';
 
       if(p.images && p.images.length > 0) {
@@ -711,6 +815,22 @@
         origPriceElem.style.display = 'none';
       }
 
+      const colorSec = document.getElementById('detailColorSection');
+      const colorOpts = document.getElementById('detailColorOptions');
+      colorOpts.innerHTML = '';
+
+      const productColors = getProductColors(p);
+      if (productColors.length > 0) {
+        colorSec.style.display = 'block';
+        productColors.forEach((col, idx) => {
+          const isFirst = (idx === 0);
+          if (isFirst) selectedProductColor = col;
+          colorOpts.innerHTML += `<button type="button" class="color-option-btn ${isFirst ? 'selected' : ''}" onclick="selectProductColor(this, '${col}')">${col}</button>`;
+        });
+      } else {
+        colorSec.style.display = 'none';
+      }
+
       document.getElementById('detailDesc').innerHTML = p.description ? p.description.replace(/\n/g, '<br>') : 'কোনো বিবরণ দেওয়া নেই।';
 
       const totalSold = globalOrders.reduce((acc, order) => {
@@ -724,6 +844,10 @@
 
       loadDetailReviews(pId);
 
+      document.getElementById('detailAddToCartBtn').onclick = () => {
+        addToCart(p.id);
+      };
+
       document.getElementById('detailBuyBtn').onclick = () => {
         buyNow(p.id);
       };
@@ -731,11 +855,18 @@
       showView('productDetailView');
     }
 
+    function selectProductColor(btnElem, colorName) {
+      document.querySelectorAll('#detailColorOptions .color-option-btn').forEach(b => b.classList.remove('selected'));
+      btnElem.classList.add('selected');
+      selectedProductColor = colorName;
+    }
+
     function loadDetailReviews(productId) {
       const reviewContainer = document.getElementById('detailReviewList');
+      if(!reviewContainer) return;
       reviewContainer.innerHTML = '';
 
-      fs.onSnapshot(fs.collection(db, "products", productId, "reviews"), (snapshot) => {
+      window.fs.onSnapshot(window.fs.collection(window.db, "products", productId, "reviews"), (snapshot) => {
         reviewContainer.innerHTML = '';
         let totalStars = 0;
         let count = 0;
@@ -793,16 +924,16 @@
           return;
         }
 
-        const reviewsRef = fs.collection(db, "products", currentDetailProductId, "reviews");
-        const q = fs.query(reviewsRef, fs.where("userPhone", "==", phone));
-        const querySnapshot = await fs.getDocs(q);
+        const reviewsRef = window.fs.collection(window.db, "products", currentDetailProductId, "reviews");
+        const q = window.fs.query(reviewsRef, window.fs.where("userPhone", "==", phone));
+        const querySnapshot = await window.fs.getDocs(q);
 
         if (!querySnapshot.empty) {
           alert('আপনি ইতিমধ্যেই এই পণ্যটিতে একটি রিভিউ প্রদান করেছেন। একটি পণ্যে একজন ক্রেতা একাধিক রিভিউ দিতে পারবেন না।');
           return;
         }
 
-        await fs.addDoc(reviewsRef, {
+        await window.fs.addDoc(reviewsRef, {
           userPhone: phone,
           userName: name,
           rating: rating,
@@ -824,11 +955,18 @@
 
     function updateCartBadge() {
       const totalQty = cart.reduce((sum, i) => sum + i.qty, 0);
-      document.getElementById('cartCount').innerText = totalQty;
+      const cartCountElem = document.getElementById('cartCount');
+      if(cartCountElem) cartCountElem.innerText = totalQty;
+    }
+
+    function changeCartItemColor(index, newColor) {
+      cart[index].color = newColor;
+      renderCart();
     }
 
     function renderCart() {
       const container = document.getElementById('cartItemsList');
+      if(!container) return;
       container.innerHTML = '';
       let subTotal = 0;
 
@@ -838,10 +976,23 @@
         cart.forEach((item, index) => {
           const itemTotal = item.price * item.qty;
           subTotal += itemTotal;
+
+          const pColors = getProductColors(item);
+          let colorDropdownHtml = '';
+          if (pColors.length > 0) {
+            colorDropdownHtml = `<div style="margin-top:4px;">
+              <label style="font-size:12px; font-weight:bold; color:var(--primary-orange);">কালার: </label>
+              <select onchange="changeCartItemColor(${index}, this.value)" style="padding:2px 6px; font-size:12px; border-radius:4px; border:1px solid #ccc; outline:none;">
+                ${pColors.map(c => `<option value="${c}" ${c === item.color ? 'selected' : ''}>${c}</option>`).join('')}
+              </select>
+            </div>`;
+          }
+
           container.innerHTML += `
             <div class="cart-item">
               <div>
                 <strong>${item.name}</strong><br>
+                ${colorDropdownHtml}
                 <small>৳${item.price}</small>
               </div>
               <div style="display:flex; align-items:center; gap:8px;">
@@ -874,7 +1025,9 @@
     }
 
     function updateDeliveryChargeUI() {
-      const area = document.getElementById('deliveryArea').value;
+      const deliveryAreaElem = document.getElementById('deliveryArea');
+      if(!deliveryAreaElem) return;
+      const area = deliveryAreaElem.value;
       const charge = (area === 'inside') ? (deliveryConfig.insideDhaka || 60) : (deliveryConfig.outsideDhaka || 120);
       const subTotal = parseFloat(document.getElementById('subTotal').innerText) || 0;
 
@@ -886,7 +1039,7 @@
       if(!phone || phone.trim().length < 11) return;
       activeCustomerPhone = phone.trim();
       try {
-        const userSnap = await fs.getDoc(fs.doc(db, "customers", activeCustomerPhone));
+        const userSnap = await window.fs.getDoc(window.fs.doc(window.db, "customers", activeCustomerPhone));
         if(userSnap.exists()) {
           const u = userSnap.data();
           document.getElementById('custName').value = u.name || '';
@@ -909,6 +1062,7 @@
 
     function renderPaymentMethodsUI() {
       const container = document.getElementById('paymentMethodsContainer');
+      if(!container) return;
       container.innerHTML = `
         <div class="pay-method-item">
           <input type="radio" id="payCOD" name="paymentMethod" value="COD" checked onclick="togglePaymentDetail('COD')">
@@ -928,6 +1082,7 @@
 
     function togglePaymentDetail(methodId) {
       const infoBox = document.getElementById('dynamicPayInfo');
+      if(!infoBox) return;
       if(methodId === 'COD') {
         infoBox.style.display = 'none';
         return;
@@ -979,12 +1134,12 @@
       const trackId = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
 
       try {
-        await fs.setDoc(fs.doc(db, "customers", phone), {
+        await window.fs.setDoc(window.fs.doc(window.db, "customers", phone), {
           name, phone, district, upazila, postCode, area: areaName, detailAddress,
           lastUpdated: new Date()
         });
 
-        await fs.addDoc(fs.collection(db, "orders"), {
+        await window.fs.addDoc(window.fs.collection(window.db, "orders"), {
           orderId: trackId,
           customer: { name, phone, district, upazila, postCode, area: areaName, detailAddress, deliveryArea: area },
           items: [...cart],
@@ -1020,7 +1175,7 @@
       const historyBox = document.getElementById('userOrderHistory');
 
       try {
-        const userSnap = await fs.getDoc(fs.doc(db, "customers", activeCustomerPhone));
+        const userSnap = await window.fs.getDoc(window.fs.doc(window.db, "customers", activeCustomerPhone));
         if(userSnap.exists()) {
           const u = userSnap.data();
           profileBox.style.display = 'block';
@@ -1046,7 +1201,7 @@
         userOrders.forEach(order => {
           const payMethod = order.payment?.method || 'COD';
           const status = order.status || 'Placed';
-          let itemsSummary = order.items ? order.items.map(i => `${i.name} (x${i.qty})`).join(', ') : 'N/A';
+          let itemsSummary = order.items ? order.items.map(i => `${i.name} ${i.color ? '(' + i.color + ')' : ''} (x${i.qty})`).join(', ') : 'N/A';
 
           html += `
             <div style="background:#fff; padding:15px; border-radius:8px; border: 1px solid #ddd; margin-bottom:12px; text-align:left;">
@@ -1067,8 +1222,6 @@
         alert('Error loading account: ' + e.message);
       }
     }
-
-    showView('shopView');
   </script>
 </body>
 </html>
