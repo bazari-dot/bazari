@@ -85,6 +85,9 @@
     .cat-chip { background: var(--orange-light); color: var(--primary-orange); padding: 8px 14px; border-radius: 20px; font-weight: bold; display: flex; align-items: center; gap: 8px; }
     .cat-chip button { background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold; }
 
+    .subcat-chip { background: #e3f2fd; color: #1976d2; padding: 6px 12px; border-radius: 16px; font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+    .subcat-chip button { background: none; border: none; color: #dc3545; cursor: pointer; font-weight: bold; }
+
     .search-box-container { margin-top: 15px; margin-bottom: 10px; }
     .search-input { width: 100%; max-width: 400px; padding: 10px 14px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; outline: none; transition: border-color 0.2s; }
     .search-input:focus { border-color: var(--primary-orange); }
@@ -128,7 +131,7 @@
         <button class="tab-btn active" onclick="switchTab(event, 'tabAddProduct')">📦 Add/Edit Product</button>
         <button class="tab-btn" onclick="switchTab(event, 'tabProducts')">📋 Product List</button>
         <button class="tab-btn" onclick="switchTab(event, 'tabBanners')">🖼️ Billboard Banners</button>
-        <button class="tab-btn" onclick="switchTab(event, 'tabCategories')">📁 Categories</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tabCategories')">📁 Categories & Subcategories</button>
         <button class="tab-btn" onclick="switchTab(event, 'tabOrders')">🛒 Orders</button>
         <button class="tab-btn" onclick="switchTab(event, 'tabPayMethods')">💳 Payment Methods</button>
         <button class="tab-btn" onclick="switchTab(event, 'tabFooter')">📄 Footer Info</button>
@@ -160,8 +163,14 @@
                 <input type="number" id="pStock" placeholder="Total Stock" required readonly style="background:#f0f0f0;">
               </div>
               <div>
-                <span class="media-label">Select Category</span>
-                <select id="pCategory" required></select>
+                <span class="media-label">Select Main Category</span>
+                <select id="pCategory" required onchange="onAdminCategoryChange(this.value)"></select>
+              </div>
+              <div>
+                <span class="media-label">Select Sub-Category (Optional)</span>
+                <select id="pSubCategory">
+                  <option value="">None / Select Sub-Category</option>
+                </select>
               </div>
               <div>
                 <span class="media-label">Images</span>
@@ -212,7 +221,7 @@
               <tr>
                 <th>Media</th>
                 <th>Name</th>
-                <th>Category</th>
+                <th>Category / Subcategory</th>
                 <th>Price</th>
                 <th>Colors & Stock</th>
                 <th>Action</th>
@@ -256,16 +265,38 @@
         </div>
       </div>
 
-      <!-- TAB 4: CATEGORIES -->
+      <!-- TAB 4: CATEGORIES & SUBCATEGORIES -->
       <div id="tabCategories" class="tab-content">
         <div class="admin-card">
-          <h3>Category Management</h3>
-          <form onsubmit="handleAddCategory(event)" style="display:flex; gap:10px; margin-top:15px; max-width:500px;">
-            <input type="text" id="catNameInput" placeholder="Category Name" required style="padding:10px; border:1px solid #ddd; border-radius:6px; flex:1;">
-            <button type="submit" class="btn-submit" style="width:auto; padding:10px 20px;">Add Category</button>
-          </form>
-          <h4 style="margin-top: 25px;">Current Categories:</h4>
-          <div id="categoryContainer" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:15px;"></div>
+          <h3>Category & Subcategory Management</h3>
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top:15px;">
+            <!-- Main Category Form -->
+            <div style="background:#fafafa; padding:15px; border-radius:8px; border:1px solid #eee;">
+              <h4>Add Main Category</h4>
+              <form onsubmit="handleAddCategory(event)" style="display:flex; gap:10px; margin-top:10px;">
+                <input type="text" id="catNameInput" placeholder="Main Category Name" required style="padding:10px; border:1px solid #ddd; border-radius:6px; flex:1;">
+                <button type="submit" class="btn-submit" style="width:auto; padding:10px 20px;">Add</button>
+              </form>
+            </div>
+
+            <!-- Sub Category Form -->
+            <div style="background:#fafafa; padding:15px; border-radius:8px; border:1px solid #eee;">
+              <h4>Add Sub-Category</h4>
+              <form onsubmit="handleAddSubCategory(event)" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+                <select id="subCatParentSelect" required style="padding:10px; border:1px solid #ddd; border-radius:6px;">
+                  <option value="">Select Main Category First</option>
+                </select>
+                <div style="display:flex; gap:10px;">
+                  <input type="text" id="subCatNameInput" placeholder="Sub-Category Name" required style="padding:10px; border:1px solid #ddd; border-radius:6px; flex:1;">
+                  <button type="submit" class="btn-submit" style="width:auto; padding:10px 20px;">Add Sub-Category</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <h4 style="margin-top: 25px;">Current Categories & Subcategories:</h4>
+          <div id="categoryContainer" style="display:flex; flex-direction:column; gap:15px; margin-top:15px;"></div>
         </div>
       </div>
 
@@ -398,6 +429,7 @@
     let globalProducts = [];
     let globalOrders = [];
     let globalCategories = [];
+    let globalSubCategories = [];
     let globalPayMethods = [];
     let globalBanners = [];
     let tempColorVariants = []; // Holds temporary color stock array
@@ -502,6 +534,12 @@
       fs.onSnapshot(fs.collection(db, "categories"), (snapshot) => {
         globalCategories = [];
         snapshot.forEach((doc) => globalCategories.push({ id: doc.id, ...doc.data() }));
+        renderCategories();
+      });
+
+      fs.onSnapshot(fs.collection(db, "subcategories"), (snapshot) => {
+        globalSubCategories = [];
+        snapshot.forEach((doc) => globalSubCategories.push({ id: doc.id, ...doc.data() }));
         renderCategories();
       });
 
@@ -649,12 +687,51 @@
     function renderCategories() {
       const container = document.getElementById('categoryContainer');
       const selectBox = document.getElementById('pCategory');
-      container.innerHTML = ''; selectBox.innerHTML = '';
+      const subCatParentSelect = document.getElementById('subCatParentSelect');
+
+      container.innerHTML = ''; 
+      selectBox.innerHTML = '<option value="">Select Category</option>';
+      subCatParentSelect.innerHTML = '<option value="">Select Main Category First</option>';
 
       globalCategories.forEach(cat => {
-        container.innerHTML += `<div class="cat-chip"><span>${cat.name}</span><button onclick="deleteCategory('${cat.id}')">✕</button></div>`;
         selectBox.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+        subCatParentSelect.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+
+        const subCatsOfCat = globalSubCategories.filter(sc => sc.parentCategory === cat.name);
+        
+        let subCatsHtml = '';
+        if(subCatsOfCat.length > 0) {
+          subCatsHtml = '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; margin-left:15px;">';
+          subCatsOfCat.forEach(sc => {
+            subCatsHtml += `<div class="subcat-chip"><span>↪ ${sc.name}</span><button onclick="deleteSubCategory('${sc.id}')">✕</button></div>`;
+          });
+          subCatsHtml += '</div>';
+        }
+
+        container.innerHTML += `
+          <div style="background:#fff; border:1px solid #eee; padding:12px; border-radius:8px;">
+            <div class="cat-chip" style="width:fit-content;">
+              <span>📁 ${cat.name}</span>
+              <button onclick="deleteCategory('${cat.id}', '${cat.name}')">✕</button>
+            </div>
+            ${subCatsHtml}
+          </div>
+        `;
       });
+
+      onAdminCategoryChange(document.getElementById('pCategory').value);
+    }
+
+    function onAdminCategoryChange(selectedCat) {
+      const pSubCategory = document.getElementById('pSubCategory');
+      pSubCategory.innerHTML = '<option value="">None / Select Sub-Category</option>';
+
+      if(selectedCat) {
+        const subCats = globalSubCategories.filter(sc => sc.parentCategory === selectedCat);
+        subCats.forEach(sc => {
+          pSubCategory.innerHTML += `<option value="${sc.name}">${sc.name}</option>`;
+        });
+      }
     }
 
     async function handleAddCategory(e) {
@@ -675,8 +752,38 @@
       }
     }
 
-    async function deleteCategory(id) {
-      if(confirm('Delete category?')) await fs.deleteDoc(fs.doc(db, "categories", id));
+    async function handleAddSubCategory(e) {
+      e.preventDefault();
+      const parentCat = document.getElementById('subCatParentSelect').value;
+      const subNameInput = document.getElementById('subCatNameInput');
+      const subName = subNameInput.value.trim();
+
+      if(!parentCat) return alert('Please select a main category!');
+      if(subName) {
+        const exists = globalSubCategories.some(sc => sc.parentCategory === parentCat && sc.name.toLowerCase() === subName.toLowerCase());
+        if(exists) {
+          alert('This sub-category already exists under this category!');
+          return;
+        }
+
+        await fs.addDoc(fs.collection(db, "subcategories"), { name: subName, parentCategory: parentCat });
+        subNameInput.value = '';
+        alert('Sub-category added successfully!');
+      }
+    }
+
+    async function deleteCategory(id, catName) {
+      if(confirm(`Delete category "${catName}"? Note: Subcategories associated with it will also be deleted.`)) {
+        await fs.deleteDoc(fs.doc(db, "categories", id));
+        const matchingSubCats = globalSubCategories.filter(sc => sc.parentCategory === catName);
+        for(let sc of matchingSubCats) {
+          await fs.deleteDoc(fs.doc(db, "subcategories", sc.id));
+        }
+      }
+    }
+
+    async function deleteSubCategory(id) {
+      if(confirm('Delete sub-category?')) await fs.deleteDoc(fs.doc(db, "subcategories", id));
     }
 
     function renderAdminProducts() {
@@ -708,11 +815,16 @@
           colorsStockHtml = 'N/A';
         }
 
+        let categoryDisplay = p.category || 'N/A';
+        if(p.subcategory) {
+          categoryDisplay += ` <small style="color:#ff6f00;">(${p.subcategory})</small>`;
+        }
+
         pTbody.innerHTML += `
           <tr>
             <td>${mediaHtml}</td>
             <td>${p.name}</td>
-            <td>${p.category || 'N/A'}</td>
+            <td>${categoryDisplay}</td>
             <td>৳${p.price}</td>
             <td>
               <strong>Total: ${p.stock || 0}</strong><br>
@@ -943,6 +1055,7 @@
       const discount = parseFloat(document.getElementById('pDiscount').value) || 0;
       const stock = parseInt(document.getElementById('pStock').value) || 0;
       const category = document.getElementById('pCategory').value;
+      const subcategory = document.getElementById('pSubCategory').value || '';
       const description = document.getElementById('pDescription').value;
       
       const colorsList = tempColorVariants.map(v => v.name);
@@ -957,14 +1070,14 @@
         }
 
         if(editId) {
-          const updateData = { name, price, discount, stock, colors: colorsList, colorVariants: tempColorVariants, category, description };
+          const updateData = { name, price, discount, stock, colors: colorsList, colorVariants: tempColorVariants, category, subcategory, description };
           if(resizedImages.length > 0) { updateData.images = resizedImages; updateData.image = resizedImages[0]; }
           await fs.updateDoc(fs.doc(db, "products", editId), updateData);
           alert('Product updated!');
         } else {
           if(resizedImages.length === 0) throw new Error('Select at least one image.');
           await fs.addDoc(fs.collection(db, "products"), {
-            name, price, discount, stock, colors: colorsList, colorVariants: tempColorVariants, category, description,
+            name, price, discount, stock, colors: colorsList, colorVariants: tempColorVariants, category, subcategory, description,
             images: resizedImages, image: resizedImages[0], createdAt: new Date()
           });
           alert('Product saved!');
@@ -995,7 +1108,10 @@
       }
       renderColorVariants();
 
-      document.getElementById('pCategory').value = p.category;
+      document.getElementById('pCategory').value = p.category || '';
+      onAdminCategoryChange(p.category || '');
+      document.getElementById('pSubCategory').value = p.subcategory || '';
+      
       document.getElementById('pDescription').value = p.description || '';
       document.getElementById('formTitle').innerText = "Edit Product: " + p.name;
       document.getElementById('saveProdBtn').innerText = "Update Product";
@@ -1008,6 +1124,7 @@
       document.getElementById('addProductForm').reset();
       tempColorVariants = [];
       renderColorVariants();
+      onAdminCategoryChange('');
       document.getElementById('formTitle').innerText = "Add New Product";
       document.getElementById('saveProdBtn').innerText = "Save Product";
       document.getElementById('cancelEditBtn').style.display = "none";
