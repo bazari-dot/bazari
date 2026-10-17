@@ -150,8 +150,11 @@
 
       <div class="filter-bar">
         <input type="text" id="searchInput" class="search-input" placeholder="Search product..." oninput="filterProducts()">
-        <select id="categoryFilter" onchange="filterProducts()">
+        <select id="categoryFilter" onchange="onUserCategoryChange()">
           <option value="All">All Categories</option>
+        </select>
+        <select id="subCategoryFilter" onchange="filterProducts()">
+          <option value="All">All Sub-Categories</option>
         </select>
       </div>
 
@@ -443,6 +446,7 @@
 
     let globalProducts = [];
     let globalOrders = [];
+    let globalSubCategories = [];
     let globalBanners = [];
     let globalPaymentMethods = [];
     let cart = [];
@@ -552,8 +556,6 @@
         const delSnap = await window.fs.getDoc(window.fs.doc(window.db, "settings", "delivery"));
         if(delSnap.exists()) {
           deliveryConfig = delSnap.data();
-          document.querySelectorAll('.lbl-dhaka').forEach(el => el.innerText = deliveryConfig.insideDhaka || 60);
-          document.querySelectorAll('.lbl-outside').forEach(el => el.innerText = deliveryConfig.outsideDhaka || 120);
           updateDeliveryZoneAuto();
         }
 
@@ -576,7 +578,7 @@
       window.fs.onSnapshot(window.fs.collection(window.db, "products"), (snapshot) => {
         globalProducts = [];
         snapshot.forEach((doc) => globalProducts.push({ id: doc.id, ...doc.data() }));
-        renderProducts(globalProducts);
+        filterProducts();
 
         const urlParams = new URLSearchParams(window.location.search);
         const pId = urlParams.get('id');
@@ -598,6 +600,13 @@
         snapshot.forEach((doc) => {
           catSelect.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`;
         });
+        onUserCategoryChange();
+      });
+
+      window.fs.onSnapshot(window.fs.collection(window.db, "subcategories"), (snapshot) => {
+        globalSubCategories = [];
+        snapshot.forEach((doc) => globalSubCategories.push({ id: doc.id, ...doc.data() }));
+        onUserCategoryChange();
       });
 
       window.fs.onSnapshot(window.fs.collection(window.db, "banners"), (snapshot) => {
@@ -611,6 +620,21 @@
         snapshot.forEach((doc) => globalPaymentMethods.push({ id: doc.id, ...doc.data() }));
         renderPaymentMethodsUI();
       });
+    }
+
+    function onUserCategoryChange() {
+      const selectedCat = document.getElementById('categoryFilter').value;
+      const subCatSelect = document.getElementById('subCategoryFilter');
+      subCatSelect.innerHTML = '<option value="All">All Sub-Categories</option>';
+
+      if(selectedCat !== 'All') {
+        const matchedSubs = globalSubCategories.filter(sc => sc.parentCategory === selectedCat);
+        matchedSubs.forEach(sc => {
+          subCatSelect.innerHTML += `<option value="${sc.name}">${sc.name}</option>`;
+        });
+      }
+
+      filterProducts();
     }
 
     function renderBillboardSlider() {
@@ -642,7 +666,7 @@
       grid.innerHTML = '';
 
       if(!products || products.length === 0) {
-        grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px;">No products found.</p>';
+        grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px; color:#666;">No products found for selected filters.</p>';
         return;
       }
 
@@ -694,15 +718,18 @@
     function filterProducts() {
       const searchInput = document.getElementById('searchInput');
       const categoryFilter = document.getElementById('categoryFilter');
+      const subCategoryFilter = document.getElementById('subCategoryFilter');
       if(!searchInput || !categoryFilter) return;
 
       const search = searchInput.value.toLowerCase();
       const category = categoryFilter.value;
+      const subCategory = subCategoryFilter ? subCategoryFilter.value : 'All';
 
       const filtered = globalProducts.filter(p => {
         const matchesSearch = p.name ? p.name.toLowerCase().includes(search) : false;
         const matchesCat = category === 'All' || p.category === category;
-        return matchesSearch && matchesCat;
+        const matchesSubCat = subCategory === 'All' || p.subcategory === subCategory;
+        return matchesSearch && matchesCat && matchesSubCat;
       });
       renderProducts(filtered);
     }
