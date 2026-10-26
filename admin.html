@@ -94,7 +94,6 @@
 
     .color-tag { background: #fff3e0; color: #e65100; border: 1px solid #ffe0b2; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 2px; }
 
-    /* Color Variant Creator Styling */
     .color-variant-box { background: #fafafa; border: 1px dashed var(--primary-orange); padding: 15px; border-radius: 8px; margin-top: 5px; }
     .color-item-chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--primary-orange); color: var(--primary-orange); padding: 4px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; margin-right: 5px; margin-bottom: 5px; }
     .color-item-chip button { background: none; border: none; color: red; font-weight: bold; cursor: pointer; }
@@ -172,6 +171,13 @@
                   <option value="">None / Select Sub-Category</option>
                 </select>
               </div>
+
+              <!-- Garranty / Warranty Field Added -->
+              <div>
+                <span class="media-label">Guarantee / Warranty (Days/Text)</span>
+                <input type="text" id="pWarranty" placeholder="e.g. 7 Days Guarantee / 1 Year Warranty">
+              </div>
+
               <div>
                 <span class="media-label">Images</span>
                 <input type="file" id="pImages" accept="image/*" multiple>
@@ -223,6 +229,7 @@
                 <th>Name</th>
                 <th>Category / Subcategory</th>
                 <th>Price</th>
+                <th>Warranty / Guarantee</th>
                 <th>Colors & Stock</th>
                 <th>Action</th>
               </tr>
@@ -432,7 +439,7 @@
     let globalSubCategories = [];
     let globalPayMethods = [];
     let globalBanners = [];
-    let tempColorVariants = []; // Holds temporary color stock array
+    let tempColorVariants = []; 
 
     function addColorVariant() {
       const cNameInput = document.getElementById('inputColorName');
@@ -799,7 +806,7 @@
       });
 
       if (filteredProducts.length === 0) {
-        pTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">No products found</td></tr>';
+        pTbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">No products found</td></tr>';
         return;
       }
 
@@ -826,6 +833,7 @@
             <td>${p.name}</td>
             <td>${categoryDisplay}</td>
             <td>৳${p.price}</td>
+            <td>${p.warranty || 'No Warranty'}</td>
             <td>
               <strong>Total: ${p.stock || 0}</strong><br>
               <div style="margin-top:2px;">${colorsStockHtml}</div>
@@ -1056,6 +1064,7 @@
       const stock = parseInt(document.getElementById('pStock').value) || 0;
       const category = document.getElementById('pCategory').value;
       const subcategory = document.getElementById('pSubCategory').value || '';
+      const warranty = document.getElementById('pWarranty').value.trim() || '';
       const description = document.getElementById('pDescription').value;
       
       const colorsList = tempColorVariants.map(v => v.name);
@@ -1070,14 +1079,14 @@
         }
 
         if(editId) {
-          const updateData = { name, price, discount, stock, colors: colorsList, colorVariants: tempColorVariants, category, subcategory, description };
+          const updateData = { name, price, discount, stock, colors: colorsList, colorVariants: tempColorVariants, category, subcategory, warranty, description };
           if(resizedImages.length > 0) { updateData.images = resizedImages; updateData.image = resizedImages[0]; }
           await fs.updateDoc(fs.doc(db, "products", editId), updateData);
           alert('Product updated!');
         } else {
           if(resizedImages.length === 0) throw new Error('Select at least one image.');
           await fs.addDoc(fs.collection(db, "products"), {
-            name, price, discount, stock, colors: colorsList, colorVariants: tempColorVariants, category, subcategory, description,
+            name, price, discount, stock, colors: colorsList, colorVariants: tempColorVariants, category, subcategory, warranty, description,
             images: resizedImages, image: resizedImages[0], createdAt: new Date()
           });
           alert('Product saved!');
@@ -1097,6 +1106,7 @@
       document.getElementById('pPrice').value = p.price;
       document.getElementById('pDiscount').value = p.discount || 0;
       document.getElementById('pStock').value = p.stock || 0;
+      document.getElementById('pWarranty').value = p.warranty || '';
       
       if(p.colorVariants && Array.isArray(p.colorVariants)) {
         tempColorVariants = [...p.colorVariants];
@@ -1118,7 +1128,6 @@
       document.getElementById('cancelEditBtn').style.display = "inline-block";
       switchTab(null, 'tabAddProduct');
     }
-
     function resetProductForm() {
       document.getElementById('editProductId').value = '';
       document.getElementById('addProductForm').reset();
@@ -1129,7 +1138,6 @@
       document.getElementById('saveProdBtn').innerText = "Save Product";
       document.getElementById('cancelEditBtn').style.display = "none";
     }
-
     async function deleteProduct(docId) {
       if(confirm('Delete product?')) await fs.deleteDoc(fs.doc(db, "products", docId));
     }
